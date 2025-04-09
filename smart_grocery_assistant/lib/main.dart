@@ -22,17 +22,15 @@ class SmartGroceryApp extends StatelessWidget {
     return MaterialApp(
       title: 'Smart Grocery Assistant',
       theme: ThemeData(
-        primaryColor: const Color(0xFFD32323), // Yelp-like red
-        scaffoldBackgroundColor: const Color(0xFFF8F8F8), // Off-white
+        primaryColor: const Color(0xFFD32323),
+        scaffoldBackgroundColor: const Color(0xFFF8F8F8),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFD32323), // Red buttons
+            backgroundColor: const Color(0xFFD32323),
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 15),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(
-                8,
-              ), // Slightly rounded buttons
+              borderRadius: BorderRadius.circular(8),
             ),
           ),
         ),
@@ -45,20 +43,16 @@ class SmartGroceryApp extends StatelessWidget {
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
-  // Example recipes with placeholder image URLs
   final List<Map<String, String>> recipes = const [
     {
       'name': 'Tomato Basil Pasta',
-      'image': 'assets/images/tomato_basil_pasta.jpg', // Local asset image
+      'image': 'assets/images/tomato_basil_pasta.jpg',
     },
-    {
-      'name': 'Avocado Toast',
-      'image': 'assets/images/avocado_toast.jpeg', // Local asset image
-    },
-    {
-      'name': 'Chicken Stir Fry',
-      'image': 'assets/images/chicken_stirfry.jpeg', // Local asset image
-    },
+    {'name': 'Avocado Toast', 'image': 'assets/images/avocado_toast.jpg'},
+    {'name': 'Chicken Stir Fry', 'image': 'assets/images/chicken_stir_fry.jpg'},
+    {'name': 'Vegetable Curry', 'image': 'assets/images/vegetable_curry.jpg'},
+    {'name': 'Fruit Salad', 'image': 'assets/images/fruit_salad.jpg'},
+    {'name': 'Chocolate Cake', 'image': 'assets/images/chocolate_cake.jpg'},
   ];
 
   @override
@@ -73,50 +67,99 @@ class HomeScreen extends StatelessWidget {
             color: Colors.white,
           ),
         ),
-        backgroundColor: Theme.of(context).primaryColor, // Red app bar
+        backgroundColor: Theme.of(context).primaryColor,
         centerTitle: true,
-        elevation: 4, // Slight shadow for depth
+        actions: [
+          IconButton(icon: const Icon(Icons.settings), onPressed: () {}),
+        ],
       ),
       body: Column(
         children: [
-          // Center Section: Recommended Recipes
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: ListView.builder(
-                itemCount: recipes.length,
-                itemBuilder: (context, index) {
-                  return RecipeCard(
-                    name: recipes[index]['name']!,
-                    imagePath: recipes[index]['image']!,
-                  );
-                },
+          // Top Section: Inventory Summary
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: GestureDetector(
+              onTap:
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const InventoryScreen(),
+                    ),
+                  ),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEDEDED),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text(
+                  'You have 12 ingredients at home',
+                  style: TextStyle(fontSize: 18, color: Color(0xFF333333)),
+                ),
               ),
             ),
           ),
-          // Bottom Section: Buttons
+          // Center Section: Recipe Previews
+          SizedBox(
+            height: 200,
+            child:
+                recipes.isEmpty
+                    ? const Center(
+                      child: Text(
+                        'Add groceries to see recipe ideas!',
+                        style: TextStyle(color: Color(0xFF333333)),
+                      ),
+                    )
+                    : ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: recipes.length,
+                      itemBuilder:
+                          (context, index) => Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8.0,
+                            ),
+                            child: RecipePreview(
+                              name: recipes[index]['name']!,
+                              imagePath: recipes[index]['image']!,
+                            ),
+                          ),
+                    ),
+          ),
+          // Bottom Section: Input Buttons
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 ElevatedButton(
-                  onPressed: () {
-                    print('Voice button pressed');
-                  },
-                  child: const Text('Voice', style: TextStyle(fontSize: 16)),
+                  onPressed:
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const TypeInputScreen(),
+                        ),
+                      ),
+                  child: const Text('Type'),
                 ),
                 ElevatedButton(
-                  onPressed: () {
-                    print('Scan button pressed');
-                  },
+                  onPressed:
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ScanReceiptScreen(),
+                        ),
+                      ),
                   child: const Text('Scan'),
                 ),
                 ElevatedButton(
-                  onPressed: () {
-                    print('Type button pressed');
-                  },
-                  child: const Text('Type'),
+                  onPressed:
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const VoiceInputScreen(),
+                        ),
+                      ),
+                  child: const Text('Voice'),
                 ),
               ],
             ),
@@ -127,43 +170,85 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// Recipe Card Widget
-class RecipeCard extends StatelessWidget {
+class RecipePreview extends StatelessWidget {
   final String name;
   final String imagePath;
 
-  const RecipeCard({super.key, required this.name, required this.imagePath});
+  const RecipePreview({super.key, required this.name, required this.imagePath});
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 2, // Lighter shadow for a modern look
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
-      color: const Color(0xFFEDEDED), // Light gray card
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10), // Rounded corners
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
-            child: Image.asset(imagePath, height: 150, fit: BoxFit.cover),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Text(
-              name,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF333333), // Dark gray text
-              ),
-              textAlign: TextAlign.center,
+    return GestureDetector(
+      onTap:
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => RecipeDetailScreen(name: name),
             ),
           ),
-        ],
+      child: Card(
+        elevation: 2,
+        color: const Color(0xFFEDEDED),
+        child: Column(
+          children: [
+            Image.asset(imagePath, width: 150, height: 120, fit: BoxFit.cover),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                name,
+                style: const TextStyle(fontSize: 16, color: Color(0xFF333333)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
+}
+
+// Placeholder screens
+class TypeInputScreen extends StatelessWidget {
+  const TypeInputScreen({super.key});
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Add by Typing')),
+    body: const Center(child: Text('Type Screen')),
+  );
+}
+
+class ScanReceiptScreen extends StatelessWidget {
+  const ScanReceiptScreen({super.key});
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Scan Receipt')),
+    body: const Center(child: Text('Scan Screen')),
+  );
+}
+
+class VoiceInputScreen extends StatelessWidget {
+  const VoiceInputScreen({super.key});
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Voice Input')),
+    body: const Center(child: Text('Voice Screen')),
+  );
+}
+
+class InventoryScreen extends StatelessWidget {
+  const InventoryScreen({super.key});
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('My Inventory')),
+    body: const Center(child: Text('Inventory Screen')),
+  );
+}
+
+class RecipeDetailScreen extends StatelessWidget {
+  final String name;
+  const RecipeDetailScreen({super.key, required this.name});
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: Text(name)),
+    body: Center(child: Text('$name Details')),
+  );
 }
