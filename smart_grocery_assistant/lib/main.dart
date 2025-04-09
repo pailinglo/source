@@ -1,18 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'screens/scan_receipt.dart';
+import 'screens/scan_receipt.dart'; // Updated import
 
-late List<CameraDescription> cameras;
-Future<void> main() async {
-  // Ensure that plugin services are initialized so that the camera is available
-  // to use.
+List<CameraDescription> cameras = []; // Global camera list
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  cameras = await availableCameras();
-  //  runApp(MyApp());
+  cameras = await availableCameras(); // Initialize cameras
   runApp(const SmartGroceryApp());
 }
-
-//home: ScanReceiptScreen(), // Use the ScanReceiptScreen as the home screen
 
 class SmartGroceryApp extends StatelessWidget {
   const SmartGroceryApp({super.key});
@@ -49,10 +45,6 @@ class HomeScreen extends StatelessWidget {
       'image': 'assets/images/tomato_basil_pasta.jpg',
     },
     {'name': 'Avocado Toast', 'image': 'assets/images/avocado_toast.jpg'},
-    {'name': 'Chicken Stir Fry', 'image': 'assets/images/chicken_stir_fry.jpg'},
-    {'name': 'Vegetable Curry', 'image': 'assets/images/vegetable_curry.jpg'},
-    {'name': 'Fruit Salad', 'image': 'assets/images/fruit_salad.jpg'},
-    {'name': 'Chocolate Cake', 'image': 'assets/images/chocolate_cake.jpg'},
   ];
 
   @override
@@ -75,7 +67,6 @@ class HomeScreen extends StatelessWidget {
       ),
       body: Column(
         children: [
-          // Top Section: Inventory Summary
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: GestureDetector(
@@ -93,13 +84,12 @@ class HomeScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Text(
-                  'You have 12 ingredients at home',
+                  'You have 0 ingredients at home',
                   style: TextStyle(fontSize: 18, color: Color(0xFF333333)),
                 ),
               ),
             ),
           ),
-          // Center Section: Recipe Previews
           SizedBox(
             height: 200,
             child:
@@ -125,7 +115,6 @@ class HomeScreen extends StatelessWidget {
                           ),
                     ),
           ),
-          // Bottom Section: Input Buttons
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
@@ -146,7 +135,8 @@ class HomeScreen extends StatelessWidget {
                       () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const ScanReceiptScreen(),
+                          builder:
+                              (context) => ScanReceiptScreen(cameras: cameras),
                         ),
                       ),
                   child: const Text('Scan'),
@@ -170,6 +160,7 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
+// Placeholder Screens (unchanged)
 class RecipePreview extends StatelessWidget {
   final String name;
   final String imagePath;
@@ -206,22 +197,12 @@ class RecipePreview extends StatelessWidget {
   }
 }
 
-// Placeholder screens
 class TypeInputScreen extends StatelessWidget {
   const TypeInputScreen({super.key});
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Add by Typing')),
     body: const Center(child: Text('Type Screen')),
-  );
-}
-
-class ScanReceiptScreen extends StatelessWidget {
-  const ScanReceiptScreen({super.key});
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Scan Receipt')),
-    body: const Center(child: Text('Scan Screen')),
   );
 }
 
