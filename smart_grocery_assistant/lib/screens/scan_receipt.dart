@@ -15,30 +15,35 @@ class ScanReceiptScreen extends StatefulWidget {
 }
 
 class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
-  late CameraController _controller;
+  CameraController? _controller;
   late Future<void> _initializeControllerFuture;
   String? _imagePath;
 
   @override
   void initState() {
     super.initState();
-    _controller = CameraController(
-      widget.cameras[0],
-      ResolutionPreset.medium,
-    ); // Use back camera
-    _initializeControllerFuture = _controller.initialize();
+    if (widget.cameras.isNotEmpty) {
+      _controller = CameraController(
+        widget.cameras[0],
+        ResolutionPreset.medium,
+      );
+      _initializeControllerFuture = _controller!.initialize();
+    } else {
+      _initializeControllerFuture = Future.error('No cameras available');
+    }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
   Future<void> _captureImage() async {
+    if (_controller == null) return;
     try {
       await _initializeControllerFuture;
-      final XFile image = await _controller.takePicture();
+      final XFile image = await _controller!.takePicture();
       final directory = await getTemporaryDirectory();
       final filePath = path.join(directory.path, '${DateTime.now()}.jpg');
       await image.saveTo(filePath);
@@ -59,7 +64,6 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
     );
     String text = recognizedText.text;
     print('Extracted text from receipt: $text');
-    // Placeholder for parsing grocery items
     List<String> items = _parseReceiptText(text);
     print('Detected grocery items: $items');
     await textRecognizer.close();
@@ -86,38 +90,56 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
         title: const Text('Scan Receipt'),
         backgroundColor: Theme.of(context).primaryColor,
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: FutureBuilder<void>(
-              future: _initializeControllerFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.done) {
-                  return CameraPreview(_controller);
-                } else {
-                  return const Center(child: CircularProgressIndicator());
-                }
-              },
-            ),
-          ),
-          if (_imagePath != null)
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Image.file(
-                File(_imagePath!),
-                height: 200,
-                fit: BoxFit.cover,
+      body:
+          widget.cameras.isEmpty
+              ? const Center(
+                child: Text(
+                  'No camera available on this device',
+                  style: TextStyle(color: Color(0xFF333333)),
+                ),
+              )
+              : Column(
+                children: [
+                  Expanded(
+                    child: FutureBuilder<void>(
+                      future: _initializeControllerFuture,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.done &&
+                            !snapshot.hasError) {
+                          return CameraPreview(_controller!);
+                        } else if (snapshot.hasError) {
+                          return Center(
+                            child: Text(
+                              'Error: ${snapshot.error}',
+                              style: const TextStyle(color: Color(0xFF333333)),
+                            ),
+                          );
+                        } else {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                  if (_imagePath != null)
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Image.file(
+                        File(_imagePath!),
+                        height: 200,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: ElevatedButton(
+                      onPressed: _captureImage,
+                      child: const Text('Capture Receipt'),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: ElevatedButton(
-              onPressed: _captureImage,
-              child: const Text('Capture Receipt'),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

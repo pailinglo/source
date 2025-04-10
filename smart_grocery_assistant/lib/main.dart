@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'screens/scan_receipt.dart'; // Updated import
+import 'screens/scan_receipt.dart';
 
 List<CameraDescription> cameras = []; // Global camera list
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  cameras = await availableCameras(); // Initialize cameras
+  try {
+    cameras = await availableCameras(); // Initialize cameras
+    print('Available cameras: ${cameras.length}'); // Debug log
+  } catch (e) {
+    print('Error initializing cameras: $e');
+  }
   runApp(const SmartGroceryApp());
 }
 
