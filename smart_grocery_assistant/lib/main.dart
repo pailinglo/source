@@ -1,18 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'screens/scan_receipt.dart';
+import 'package:provider/provider.dart';
+import 'screens/scan_receipt_screen.dart';
+import 'screens/inventory_screen.dart';
+import 'models/inventory_model.dart';
 
-List<CameraDescription> cameras = []; // Global camera list
+List<CameraDescription> cameras = [];
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    cameras = await availableCameras(); // Initialize cameras
-    print('Available cameras: ${cameras.length}'); // Debug log
+    cameras = await availableCameras();
+    print('Available cameras: ${cameras.length}');
   } catch (e) {
     print('Error initializing cameras: $e');
   }
-  runApp(const SmartGroceryApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => InventoryModel(),
+      child: const SmartGroceryApp(),
+    ),
+  );
 }
 
 class SmartGroceryApp extends StatelessWidget {
@@ -54,6 +62,7 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final inventory = Provider.of<InventoryModel>(context); // Access inventory
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -88,9 +97,12 @@ class HomeScreen extends StatelessWidget {
                   color: const Color(0xFFEDEDED),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Text(
-                  'You have 0 ingredients at home',
-                  style: TextStyle(fontSize: 18, color: Color(0xFF333333)),
+                child: Text(
+                  'You have ${inventory.items.length} ingredients at home',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    color: Color(0xFF333333),
+                  ),
                 ),
               ),
             ),
@@ -165,7 +177,7 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// Placeholder Screens (unchanged)
+// Placeholder Screens
 class RecipePreview extends StatelessWidget {
   final String name;
   final String imagePath;
@@ -217,15 +229,6 @@ class VoiceInputScreen extends StatelessWidget {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Voice Input')),
     body: const Center(child: Text('Voice Screen')),
-  );
-}
-
-class InventoryScreen extends StatelessWidget {
-  const InventoryScreen({super.key});
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('My Inventory')),
-    body: const Center(child: Text('Inventory Screen')),
   );
 }
 
