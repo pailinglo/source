@@ -173,4 +173,24 @@ class DatabaseHelper {
     final db = await database;
     db.close();
   }
+
+  // This function is for testing purposes only
+  // It deletes the database and all its contents
+  Future<void> resetDatabase() async {
+    final dbPath = await getDatabasesPath();
+    final path = join(dbPath, 'grocery_assistant.db');
+    await deleteDatabase(path);
+  }
+
+  Future<void> debugSchema() async {
+    final db = await database;
+    var tables = await db.rawQuery(
+      'SELECT name FROM sqlite_master WHERE type="table"',
+    );
+    print('Tables: $tables');
+    for (var table in tables) {
+      var columns = await db.rawQuery('PRAGMA table_info(${table['name']})');
+      print('Columns in ${table['name']}: $columns');
+    }
+  }
 }

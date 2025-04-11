@@ -4,11 +4,14 @@ import 'package:provider/provider.dart';
 import 'screens/scan_receipt_screen.dart';
 import 'screens/inventory_screen.dart';
 import 'models/inventory_model.dart';
+import 'database/database_helper.dart';
 
 List<CameraDescription> cameras = [];
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Reset database for testing
+  await DatabaseHelper.instance.resetDatabase();
   try {
     cameras = await availableCameras();
     print('Available cameras: ${cameras.length}');
