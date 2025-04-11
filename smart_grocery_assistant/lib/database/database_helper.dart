@@ -21,19 +21,6 @@ class DatabaseHelper {
       path,
       version: 1,
       onCreate: (db, version) async {
-        // await db.execute('''
-        //   CREATE TABLE groceries (
-        //     id INTEGER PRIMARY KEY AUTOINCREMENT,
-        //     name TEXT NOT NULL
-        //   )
-        // ''');
-        await db.execute('''
-          CREATE TABLE groceries (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            ingredient_id INTEGER,
-            FOREIGN KEY (ingredient_id) REFERENCES ingredients(id)
-          )
-        ''');
         await db.execute('''
           CREATE TABLE ingredients (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -48,7 +35,13 @@ class DatabaseHelper {
             FOREIGN KEY (ingredient_id) REFERENCES ingredients(id)
           )
         ''');
-        // Add more tables later (e.g., recipes, users)
+        await db.execute('''
+          CREATE TABLE groceries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ingredient_id INTEGER,
+            FOREIGN KEY (ingredient_id) REFERENCES ingredients(id)
+          )
+        ''');
         await db.execute('''
           CREATE TABLE recipes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,18 +52,12 @@ class DatabaseHelper {
         await db.execute('''
           CREATE TABLE recipe_ingredients (
             recipe_id INTEGER,
-            ingredient_name TEXT,
-            FOREIGN KEY (recipe_id) REFERENCES recipes(id)
+            ingredient_id INTEGER,
+            FOREIGN KEY (recipe_id) REFERENCES recipes(id),
+            FOREIGN KEY (ingredient_id) REFERENCES ingredients(id),
+            PRIMARY KEY (recipe_id, ingredient_id)
           )
         ''');
-        await db.execute('''
-        CREATE TABLE users (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          username TEXT NOT NULL,
-          password TEXT NOT NULL
-        )
-      ''');
-        // Seed initial data
         await _seedInitialData(db);
       },
     );
@@ -81,6 +68,8 @@ class DatabaseHelper {
     await db.insert('ingredients', {'name': 'tomato'});
     await db.insert('ingredients', {'name': 'chicken'});
     await db.insert('ingredients', {'name': 'pasta'});
+    await db.insert('ingredients', {'name': 'basil'});
+    await db.insert('ingredients', {'name': 'rice'});
 
     // Insert synonyms
     await db.insert('synonyms', {'synonym': 'tomatoes', 'ingredient_id': 1});
@@ -89,13 +78,44 @@ class DatabaseHelper {
       'ingredient_id': 2,
     });
     await db.insert('synonyms', {'synonym': 'spaghetti', 'ingredient_id': 3});
+
+    // Insert sample recipes
+    await db.insert('recipes', {
+      'name': 'Tomato Basil Pasta',
+      'instructions': 'Cook pasta, add tomato sauce and basil.',
+    });
+    await db.insert('recipes', {
+      'name': 'Chicken Stir Fry',
+      'instructions': 'Stir fry chicken with rice.',
+    });
+
+    // Insert recipe ingredients
+    await db.insert('recipe_ingredients', {
+      'recipe_id': 1,
+      'ingredient_id': 1,
+    }); // Tomato
+    await db.insert('recipe_ingredients', {
+      'recipe_id': 1,
+      'ingredient_id': 3,
+    }); // Pasta
+    await db.insert('recipe_ingredients', {
+      'recipe_id': 1,
+      'ingredient_id': 4,
+    }); // Basil
+    await db.insert('recipe_ingredients', {
+      'recipe_id': 2,
+      'ingredient_id': 2,
+    }); // Chicken
+    await db.insert('recipe_ingredients', {
+      'recipe_id': 2,
+      'ingredient_id': 5,
+    }); // Rice
   }
 
   Future<int> _getOrCreateIngredientId(String name) async {
     final db = await database;
     name = name.toLowerCase().trim();
 
-    // Check if it's a canonical ingredient
     var result = await db.query(
       'ingredients',
       where: 'name = ?',
@@ -103,7 +123,6 @@ class DatabaseHelper {
     );
     if (result.isNotEmpty) return result.first['id'] as int;
 
-    // Check if it's a synonym
     result = await db.query(
       'synonyms',
       where: 'synonym = ?',
@@ -111,7 +130,6 @@ class DatabaseHelper {
     );
     if (result.isNotEmpty) return result.first['ingredient_id'] as int;
 
-    // New ingredient: add to canonical list
     final id = await db.insert('ingredients', {'name': name});
     return id;
   }
@@ -137,22 +155,22 @@ class DatabaseHelper {
     await db.delete('groceries', where: 'id = ?', whereArgs: [id]);
   }
 
+  Future<List<Map<String, dynamic>>> getRecommendedRecipes() async {
+    final db = await database;
+    return await db.rawQuery('''
+      SELECT r.id, r.name, r.instructions,
+             COUNT(CASE WHEN g.ingredient_id IS NOT NULL THEN 1 END) * 100.0 / COUNT(*) AS match_percentage
+      FROM recipes r
+      LEFT JOIN recipe_ingredients ri ON r.id = ri.recipe_id
+      LEFT JOIN groceries g ON ri.ingredient_id = g.ingredient_id
+      GROUP BY r.id, r.name, r.instructions
+      HAVING match_percentage >= 70
+      ORDER BY match_percentage DESC
+    ''');
+  }
+
   Future<void> close() async {
     final db = await database;
     db.close();
   }
-
-  // Future<List<Map<String, dynamic>>> getRecommendedRecipes() async {
-  //   final db = await database;
-  //   return await db.rawQuery('''
-  //     SELECT r.id, r.name, r.instructions,
-  //           COUNT(CASE WHEN g.name IS NOT NULL THEN 1 END) * 100.0 / COUNT(*) AS match_percentage
-  //     FROM recipes r
-  //     LEFT JOIN recipe_ingredients ri ON r.id = ri.recipe_id
-  //     LEFT JOIN groceries g ON ri.ingredient_name = g.name
-  //     GROUP BY r.id, r.name, r.instructions
-  //     HAVING match_percentage >= 70
-  //     ORDER BY match_percentage DESC
-  //   ''');
-  // }
 }

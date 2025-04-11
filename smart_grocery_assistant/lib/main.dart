@@ -52,17 +52,11 @@ class SmartGroceryApp extends StatelessWidget {
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
-  final List<Map<String, String>> recipes = const [
-    {
-      'name': 'Tomato Basil Pasta',
-      'image': 'assets/images/tomato_basil_pasta.jpg',
-    },
-    {'name': 'Avocado Toast', 'image': 'assets/images/avocado_toast.jpg'},
-  ];
-
   @override
   Widget build(BuildContext context) {
-    final inventory = Provider.of<InventoryModel>(context); // Access inventory
+    final inventory = Provider.of<InventoryModel>(context);
+    final recipes = inventory.recommendedRecipes;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -113,7 +107,7 @@ class HomeScreen extends StatelessWidget {
                 recipes.isEmpty
                     ? const Center(
                       child: Text(
-                        'Add groceries to see recipe ideas!',
+                        'Add more groceries to see recipe ideas!',
                         style: TextStyle(color: Color(0xFF333333)),
                       ),
                     )
@@ -126,8 +120,9 @@ class HomeScreen extends StatelessWidget {
                               horizontal: 8.0,
                             ),
                             child: RecipePreview(
-                              name: recipes[index]['name']!,
-                              imagePath: recipes[index]['image']!,
+                              name: recipes[index]['name'] as String,
+                              instructions:
+                                  recipes[index]['instructions'] as String,
                             ),
                           ),
                     ),
@@ -177,12 +172,15 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// Placeholder Screens
 class RecipePreview extends StatelessWidget {
   final String name;
-  final String imagePath;
+  final String instructions;
 
-  const RecipePreview({super.key, required this.name, required this.imagePath});
+  const RecipePreview({
+    super.key,
+    required this.name,
+    required this.instructions,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -191,7 +189,11 @@ class RecipePreview extends StatelessWidget {
           () => Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => RecipeDetailScreen(name: name),
+              builder:
+                  (context) => RecipeDetailScreen(
+                    name: name,
+                    instructions: instructions,
+                  ),
             ),
           ),
       child: Card(
@@ -199,7 +201,12 @@ class RecipePreview extends StatelessWidget {
         color: const Color(0xFFEDEDED),
         child: Column(
           children: [
-            Image.asset(imagePath, width: 150, height: 120, fit: BoxFit.cover),
+            Container(
+              width: 150,
+              height: 120,
+              color: Colors.grey,
+              child: const Center(child: Text('Image Placeholder')),
+            ), // Replace with image later
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Text(
@@ -234,10 +241,20 @@ class VoiceInputScreen extends StatelessWidget {
 
 class RecipeDetailScreen extends StatelessWidget {
   final String name;
-  const RecipeDetailScreen({super.key, required this.name});
+  final String instructions;
+
+  const RecipeDetailScreen({
+    super.key,
+    required this.name,
+    required this.instructions,
+  });
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: Text(name)),
-    body: Center(child: Text('$name Details')),
+    body: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Text(instructions, style: const TextStyle(fontSize: 16)),
+    ),
   );
 }
