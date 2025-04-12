@@ -49,5 +49,9 @@
 	<string>This app needs camera access to scan items.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>This app requires local network access for debugging and development purposes.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>We need microphone access to enable voice input for adding groceries.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>We use speech recognition to let you add grocery items by voice.</string>
 </dict>
 </plist>

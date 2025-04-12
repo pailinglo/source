@@ -1,16 +1,21 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../models/inventory_model.dart';
+import 'scan_receipt_screen.dart';
+import 'package:camera/camera.dart';
 
-class InventoryScreen extends StatefulWidget {
-  const InventoryScreen({super.key});
+class AddGroceryScreen extends StatefulWidget {
+  final List<CameraDescription> cameras;
+
+  const AddGroceryScreen({super.key, required this.cameras});
 
   @override
-  _InventoryScreenState createState() => _InventoryScreenState();
+  _AddGroceryScreenState createState() => _AddGroceryScreenState();
 }
 
-class _InventoryScreenState extends State<InventoryScreen> {
+class _AddGroceryScreenState extends State<AddGroceryScreen> {
   final TextEditingController _controller = TextEditingController();
   late stt.SpeechToText _speech;
   bool _isListening = false;
@@ -47,8 +52,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         onResult: (result) {
           setState(() {
             _voiceInput = result.recognizedWords;
-            _controller.text =
-                _voiceInput; // Update text field with voice input
+            _controller.text = _voiceInput;
           });
         },
       );
@@ -71,6 +75,15 @@ class _InventoryScreenState extends State<InventoryScreen> {
     }
   }
 
+  void _navigateToScan() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ScanReceiptScreen(cameras: widget.cameras),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -85,7 +98,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'My Inventory',
+          'Add Groceries',
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
@@ -125,6 +138,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   ),
                   onPressed: _isListening ? _stopListening : _startListening,
                   tooltip: _isListening ? 'Stop Listening' : 'Voice Input',
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.camera_alt, color: Colors.grey),
+                  onPressed: _navigateToScan,
+                  tooltip: 'Scan Receipt',
                 ),
               ],
             ),

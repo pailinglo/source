@@ -4,6 +4,8 @@ import 'package:camera/camera.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:google_ml_kit/google_ml_kit.dart';
+import 'package:provider/provider.dart';
+import '../models/inventory_model.dart';
 
 class ScanReceiptScreen extends StatefulWidget {
   final List<CameraDescription> cameras;
@@ -18,6 +20,7 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
   CameraController? _controller;
   late Future<void> _initializeControllerFuture;
   String? _imagePath;
+  List<String> _detectedItems = [];
 
   @override
   void initState() {
@@ -64,9 +67,31 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
     );
     String text = recognizedText.text;
     print('Extracted text from receipt: $text');
-    List<String> items = _parseReceiptText(text);
-    print('Detected grocery items: $items');
+    setState(() {
+      _detectedItems = _parseReceiptText(text);
+    });
+    print('Detected grocery items: $_detectedItems');
     await textRecognizer.close();
+
+    // Add detected items to inventory
+    final inventory = Provider.of<InventoryModel>(context, listen: false);
+    for (var item in _detectedItems) {
+      await inventory.addItem(item);
+    }
+
+    // Show confirmation and return to AddGroceryScreen
+    if (_detectedItems.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Added ${_detectedItems.length} items to inventory'),
+        ),
+      );
+      Navigator.pop(context);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No items detected on receipt')),
+      );
+    }
   }
 
   List<String> _parseReceiptText(String text) {
@@ -129,6 +154,14 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
                         File(_imagePath!),
                         height: 200,
                         fit: BoxFit.cover,
+                      ),
+                    ),
+                  if (_detectedItems.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text(
+                        'Detected items: ${_detectedItems.join(', ')}',
+                        style: const TextStyle(color: Color(0xFF333333)),
                       ),
                     ),
                   Padding(

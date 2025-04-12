@@ -1,17 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:provider/provider.dart';
+import 'screens/add_grocery_screen.dart';
 import 'screens/scan_receipt_screen.dart';
-import 'screens/inventory_screen.dart';
 import 'models/inventory_model.dart';
-import 'database/database_helper.dart';
 
 List<CameraDescription> cameras = [];
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Reset database for testing
-  await DatabaseHelper.instance.resetDatabase();
   try {
     cameras = await availableCameras();
     print('Available cameras: ${cameras.length}');
@@ -85,7 +82,7 @@ class HomeScreen extends StatelessWidget {
                   () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const InventoryScreen(),
+                      builder: (context) => AddGroceryScreen(cameras: cameras),
                     ),
                   ),
               child: Container(
@@ -132,41 +129,15 @@ class HomeScreen extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ElevatedButton(
-                  onPressed:
-                      () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const TypeInputScreen(),
-                        ),
-                      ),
-                  child: const Text('Type'),
-                ),
-                ElevatedButton(
-                  onPressed:
-                      () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder:
-                              (context) => ScanReceiptScreen(cameras: cameras),
-                        ),
-                      ),
-                  child: const Text('Scan'),
-                ),
-                ElevatedButton(
-                  onPressed:
-                      () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const VoiceInputScreen(),
-                        ),
-                      ),
-                  child: const Text('Voice'),
-                ),
-              ],
+            child: ElevatedButton(
+              onPressed:
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AddGroceryScreen(cameras: cameras),
+                    ),
+                  ),
+              child: const Text('Add Groceries'),
             ),
           ),
         ],
@@ -209,7 +180,7 @@ class RecipePreview extends StatelessWidget {
               height: 120,
               color: Colors.grey,
               child: const Center(child: Text('Image Placeholder')),
-            ), // Replace with image later
+            ),
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Text(
@@ -222,24 +193,6 @@ class RecipePreview extends StatelessWidget {
       ),
     );
   }
-}
-
-class TypeInputScreen extends StatelessWidget {
-  const TypeInputScreen({super.key});
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Add by Typing')),
-    body: const Center(child: Text('Type Screen')),
-  );
-}
-
-class VoiceInputScreen extends StatelessWidget {
-  const VoiceInputScreen({super.key});
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Voice Input')),
-    body: const Center(child: Text('Voice Screen')),
-  );
 }
 
 class RecipeDetailScreen extends StatelessWidget {
