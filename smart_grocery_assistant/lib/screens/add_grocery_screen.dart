@@ -2,9 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:camera/camera.dart';
 import '../models/inventory_model.dart';
 import 'scan_receipt_screen.dart';
-import 'package:camera/camera.dart';
 
 class AddGroceryScreen extends StatefulWidget {
   final List<CameraDescription> cameras;
@@ -44,6 +44,9 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
       onError: (error) {
         print('Speech recognition error: $error');
         setState(() => _isListening = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Speech recognition failed: $error')),
+        );
       },
     );
     if (available) {
@@ -59,7 +62,11 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
     } else {
       setState(() => _isListening = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Speech recognition not available')),
+        const SnackBar(
+          content: Text(
+            'Speech recognition not available. Please enable microphone and speech permissions.',
+          ),
+        ),
       );
     }
   }
@@ -166,7 +173,7 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                             horizontal: 16,
                             vertical: 4,
                           ),
-                          color: const Color(0xFFEDEDED),
+                          color: const Color(0xFFEDED),
                           child: ListTile(
                             title: Text(
                               inventory.items[index],
