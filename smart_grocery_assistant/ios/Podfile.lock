@@ -230,14 +230,14 @@ PODS:
     - nanopb/encode (= 3.30910.0)
   - nanopb/decode (3.30910.0)
   - nanopb/encode (3.30910.0)
-  - path_provider_foundation (0.0.1):
+  - path_provider_foundation (2.4.1):
     - Flutter
     - FlutterMacOS
   - PromisesObjC (2.4.0)
-  - speech_to_text (0.0.1):
+  - speech_to_text (6.0.0):
     - Flutter
     - Try
-  - sqflite_darwin (0.0.4):
+  - sqflite_darwin (2.4.2):
     - Flutter
     - FlutterMacOS
   - SSZipArchive (2.6.0)
@@ -393,13 +393,13 @@ SPEC CHECKSUMS:
   MLKitVisionKit: 8a7abd5f11aeb1add2942a694c2685eca422a849
   MLKitXenoCommon: ce5047943af6b4be7ae035dd81b3a56fdb29aab3
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
-  path_provider_foundation: 2b6b4c569c0fb62ec74538f866245ac84301af46
+  path_provider_foundation: a8fa105e2342f15665a4518d6dd624ab372ca0b6
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
-  speech_to_text: b43a7d99aef037bd758ed8e45d79bbac035d2dfe
-  sqflite_darwin: 5a7236e3b501866c1c9befc6771dfd73ffb8702d
+  speech_to_text: 628893d9d8093d7cc32f1caa75ab72eedb19e17d
+  sqflite_darwin: 1f89419786df117f0f3e5e49b8073ed932c3de47
   SSZipArchive: 8a6ee5677c8e304bebc109e39cf0da91ccef22ea
   Try: 5ef669ae832617b3cee58cb2c6f99fb767a4ff96
 
-PODFILE CHECKSUM: fc00d9f4a8a7d7710efef8896e9a38ec5750266e
+PODFILE CHECKSUM: 6b2682fb93fbc7d46bc85b01e96f41787a595ac3
 
 COCOAPODS: 1.16.2
