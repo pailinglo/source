@@ -31,10 +31,15 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
     if (_controller.text.isNotEmpty) {
       inventory.addItem(_controller.text.trim());
       _controller.clear();
+      _voiceInput = ''; // Clear _voiceInput to prevent stale text
     }
   }
 
   void _startListening() async {
+    // Reset state before starting new session
+    _voiceInput = '';
+    _controller.clear();
+
     bool available = await _speech.initialize(
       onStatus: (status) {
         if (status == 'done' || status == 'notListening') {
@@ -173,7 +178,7 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                             horizontal: 16,
                             vertical: 4,
                           ),
-                          color: const Color(0xFFEDED),
+                          color: const Color(0xFFEDEDED), // Fixed color hex
                           child: ListTile(
                             title: Text(
                               inventory.items[index],
