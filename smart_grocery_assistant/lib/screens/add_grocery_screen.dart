@@ -20,6 +20,7 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
   late stt.SpeechToText _speech;
   bool _isListening = false;
   String _voiceInput = '';
+  String _lastAdded = ''; // Track last added item to filter new input
 
   @override
   void initState() {
@@ -29,19 +30,27 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
 
   void _addItem(InventoryModel inventory) {
     if (_controller.text.isNotEmpty) {
-      inventory.addItem(_controller.text.trim());
+      String item = _controller.text.trim();
+      print('Adding item: $item');
+      inventory.addItem(item);
+      _lastAdded = item; // Store for filtering next input
+      _voiceInput = '';
       _controller.clear();
-      _voiceInput = ''; // Clear _voiceInput to prevent stale text
+      setState(() {});
+      print('Cleared input, last added: $_lastAdded');
     }
   }
 
   void _startListening() async {
-    // Reset state before starting new session
-    _voiceInput = '';
-    _controller.clear();
+    if (_isListening) {
+      // Already listening, no need to restart
+      return;
+    }
 
+    print('Starting speech recognition');
     bool available = await _speech.initialize(
       onStatus: (status) {
+        print('Speech status: $status');
         if (status == 'done' || status == 'notListening') {
           setState(() => _isListening = false);
         }
@@ -56,13 +65,27 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
     );
     if (available) {
       setState(() => _isListening = true);
+      _voiceInput = '';
+      _lastAdded = '';
+      _controller.clear();
       _speech.listen(
         onResult: (result) {
           setState(() {
-            _voiceInput = result.recognizedWords;
+            String recognized = result.recognizedWords;
+            // Show only new words since last added item
+            if (_lastAdded.isNotEmpty && recognized.startsWith(_lastAdded)) {
+              _voiceInput = recognized.substring(_lastAdded.length).trim();
+            } else {
+              _voiceInput = recognized;
+            }
             _controller.text = _voiceInput;
+            print('Recognized: $recognized, Displayed: $_voiceInput');
           });
         },
+        listenFor: Duration(seconds: 60), // Longer session for multiple items
+        pauseFor: Duration(seconds: 5),
+        partialResults: true,
+        cancelOnError: true,
       );
     } else {
       setState(() => _isListening = false);
@@ -77,13 +100,17 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
   }
 
   void _stopListening() {
+    print('Stopping speech recognition, current input: $_voiceInput');
     _speech.stop();
+    _speech.cancel();
     setState(() => _isListening = false);
     if (_voiceInput.isNotEmpty) {
       final inventory = Provider.of<InventoryModel>(context, listen: false);
       inventory.addItem(_voiceInput.trim());
+      _lastAdded = _voiceInput.trim();
       _voiceInput = '';
       _controller.clear();
+      print('Added item on stop: $_lastAdded');
     }
   }
 
@@ -178,7 +205,7 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                             horizontal: 16,
                             vertical: 4,
                           ),
-                          color: const Color(0xFFEDEDED), // Fixed color hex
+                          color: const Color(0xFFEDEDED),
                           child: ListTile(
                             title: Text(
                               inventory.items[index],
