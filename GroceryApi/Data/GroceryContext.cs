@@ -12,6 +12,7 @@ namespace GroceryApi.Data
         public DbSet<Recipe> Recipes { get; set; }
         public DbSet<RecipeIngredient> RecipeIngredients { get; set; }
         public DbSet<UserIngredient> UserIngredients { get; set; }
+        public DbSet<RecipeRecommendation> RecipeRecommendations { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -22,6 +23,10 @@ namespace GroceryApi.Data
                 .HasKey(ri => new { ri.RecipeId, ri.IngredientId });
             modelBuilder.Entity<UserIngredient>()
                 .HasKey(ui => new { ui.UserId, ui.IngredientId });
+
+            modelBuilder.Entity<RecipeRecommendation>()
+                .HasNoKey()
+                .ToView(null); // Keyless entity, not mapped to a table
 
             modelBuilder.Entity<RecipeIngredient>()
                 .HasOne(ri => ri.Recipe)

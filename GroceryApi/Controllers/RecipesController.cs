@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GroceryApi.Data;
 using GroceryApi.Models;
+using Microsoft.Data.SqlClient;
 
 namespace GroceryApi.Controllers
 {
@@ -39,30 +40,10 @@ namespace GroceryApi.Controllers
         [HttpGet("recommend/{userId}")]
         public async Task<ActionResult<IEnumerable<RecipeRecommendation>>> GetRecommendedRecipes(string userId)
         {
-            var userIngredientIds = await _context.UserIngredients
-                .Where(ui => ui.UserId == userId)
-                .Select(ui => ui.IngredientId)
+            var recommendations = await _context.RecipeRecommendations
+                .FromSqlRaw("EXEC GetRecommendedRecipes @UserId", new SqlParameter("@UserId", userId))
                 .ToListAsync();
-
-            var recommendations = await _context.Recipes
-                .Join(_context.RecipeIngredients,
-                    r => r.RecipeId,
-                    ri => ri.RecipeId,
-                    (r, ri) => new { r, ri })
-                .Where(x => userIngredientIds.Contains(x.ri.IngredientId))
-                .GroupBy(x => new { x.r.RecipeId, x.r.Name, x.r.IngredientCount })
-                .Select(g => new RecipeRecommendation
-                {
-                    RecipeId = g.Key.RecipeId,
-                    Name = g.Key.Name,
-                    MatchCount = g.Count(),
-                    MatchPercent = (double)g.Count() / g.Key.IngredientCount
-                })
-                .Where(r => r.MatchPercent >= 0.7)
-                .OrderByDescending(r => r.MatchCount)
-                .ToListAsync();
-
-            return recommendations;
+            return Ok(recommendations ?? new List<RecipeRecommendation>());
         }
     }
 }

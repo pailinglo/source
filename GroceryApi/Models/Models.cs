@@ -44,7 +44,13 @@ namespace GroceryApi.Models
     {
         public string RecipeId { get; set; }
         public string Name { get; set; }
+        public int IngredientCount { get; set; }
         public int MatchCount { get; set; }
         public double MatchPercent { get; set; }
+    }
+
+    public class UserIngredientDto
+    {
+        public string IngredientId { get; set; }
     }
 }
