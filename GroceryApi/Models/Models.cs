@@ -4,15 +4,23 @@ namespace GroceryApi.Models
     {
         public string UserId { get; set; }
         public string Email { get; set; }
-        public List<GroceryItem> GroceryItems { get; set; }
+        public List<UserIngredient> UserIngredients { get; set; }
     }
 
-    public class GroceryItem
+    public class Ingredient
     {
-        public string ItemId { get; set; }
-        public string UserId { get; set; }
+        public string IngredientId { get; set; }
         public string Name { get; set; }
+        public List<RecipeIngredient> RecipeIngredients { get; set; }
+        public List<UserIngredient> UserIngredients { get; set; }
+    }
+
+    public class UserIngredient
+    {
+        public string UserId { get; set; }
+        public string IngredientId { get; set; }
         public User User { get; set; }
+        public Ingredient Ingredient { get; set; }
     }
 
     public class Recipe
@@ -21,14 +29,15 @@ namespace GroceryApi.Models
         public string Name { get; set; }
         public string Instructions { get; set; }
         public int IngredientCount { get; set; }
-        public List<RecipeIngredient> Ingredients { get; set; }
+        public List<RecipeIngredient> RecipeIngredients { get; set; }
     }
 
     public class RecipeIngredient
     {
         public string RecipeId { get; set; }
-        public string IngredientName { get; set; }
+        public string IngredientId { get; set; }
         public Recipe Recipe { get; set; }
+        public Ingredient Ingredient { get; set; }
     }
 
     public class RecipeRecommendation

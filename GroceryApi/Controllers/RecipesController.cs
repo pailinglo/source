@@ -20,7 +20,8 @@ namespace GroceryApi.Controllers
         public async Task<ActionResult<IEnumerable<Recipe>>> GetRecipes()
         {
             return await _context.Recipes
-                .Include(r => r.Ingredients)
+                .Include(r => r.RecipeIngredients)
+                .ThenInclude(ri => ri.Ingredient)
                 .ToListAsync();
         }
 
@@ -28,7 +29,8 @@ namespace GroceryApi.Controllers
         public async Task<ActionResult<Recipe>> GetRecipe(string recipeId)
         {
             var recipe = await _context.Recipes
-                .Include(r => r.Ingredients)
+                .Include(r => r.RecipeIngredients)
+                .ThenInclude(ri => ri.Ingredient)
                 .FirstOrDefaultAsync(r => r.RecipeId == recipeId);
             if (recipe == null) return NotFound();
             return recipe;
@@ -37,9 +39,9 @@ namespace GroceryApi.Controllers
         [HttpGet("recommend/{userId}")]
         public async Task<ActionResult<IEnumerable<RecipeRecommendation>>> GetRecommendedRecipes(string userId)
         {
-            var groceryItems = await _context.GroceryItems
-                .Where(g => g.UserId == userId)
-                .Select(g => g.Name)
+            var userIngredientIds = await _context.UserIngredients
+                .Where(ui => ui.UserId == userId)
+                .Select(ui => ui.IngredientId)
                 .ToListAsync();
 
             var recommendations = await _context.Recipes
@@ -47,7 +49,7 @@ namespace GroceryApi.Controllers
                     r => r.RecipeId,
                     ri => ri.RecipeId,
                     (r, ri) => new { r, ri })
-                .Where(x => groceryItems.Contains(x.ri.IngredientName))
+                .Where(x => userIngredientIds.Contains(x.ri.IngredientId))
                 .GroupBy(x => new { x.r.RecipeId, x.r.Name, x.r.IngredientCount })
                 .Select(g => new RecipeRecommendation
                 {
