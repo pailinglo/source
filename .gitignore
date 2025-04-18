@@ -1,3 +1,7 @@
 /HelloApple/
 /test_app/
+*.dll
+/GroceryApi/obj/
+/GroceryApi/bin/
+
 

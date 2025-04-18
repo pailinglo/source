@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using GroceryApi.Models;
 
 namespace GroceryApi.Data
 {
