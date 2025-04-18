@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GroceryApi.Migrations
 {
     [DbContext(typeof(GroceryContext))]
-    [Migration("20250418023147_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20250418180805_AddUserIngredients")]
+    partial class AddUserIngredients
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,24 +24,18 @@ namespace GroceryApi.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("GroceryApi.Models.GroceryItem", b =>
+            modelBuilder.Entity("GroceryApi.Models.Ingredient", b =>
                 {
-                    b.Property<string>("ItemId")
+                    b.Property<string>("IngredientId")
                         .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                    b.HasKey("IngredientId");
 
-                    b.HasKey("ItemId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("GroceryItems");
+                    b.ToTable("Ingredients");
                 });
 
             modelBuilder.Entity("GroceryApi.Models.Recipe", b =>
@@ -70,10 +64,12 @@ namespace GroceryApi.Migrations
                     b.Property<string>("RecipeId")
                         .HasColumnType("nvarchar(450)");
 
-                    b.Property<string>("IngredientName")
+                    b.Property<string>("IngredientId")
                         .HasColumnType("nvarchar(450)");
 
-                    b.HasKey("RecipeId", "IngredientName");
+                    b.HasKey("RecipeId", "IngredientId");
+
+                    b.HasIndex("IngredientId");
 
                     b.ToTable("RecipeIngredients");
                 });
@@ -92,36 +88,74 @@ namespace GroceryApi.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("GroceryApi.Models.GroceryItem", b =>
+            modelBuilder.Entity("GroceryApi.Models.UserIngredient", b =>
                 {
-                    b.HasOne("GroceryApi.Models.User", "User")
-                        .WithMany("GroceryItems")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(450)");
 
-                    b.Navigation("User");
+                    b.Property<string>("IngredientId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("UserId", "IngredientId");
+
+                    b.HasIndex("IngredientId");
+
+                    b.ToTable("UserIngredients");
                 });
 
             modelBuilder.Entity("GroceryApi.Models.RecipeIngredient", b =>
                 {
+                    b.HasOne("GroceryApi.Models.Ingredient", "Ingredient")
+                        .WithMany("RecipeIngredients")
+                        .HasForeignKey("IngredientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("GroceryApi.Models.Recipe", "Recipe")
-                        .WithMany("Ingredients")
+                        .WithMany("RecipeIngredients")
                         .HasForeignKey("RecipeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("Ingredient");
+
                     b.Navigation("Recipe");
+                });
+
+            modelBuilder.Entity("GroceryApi.Models.UserIngredient", b =>
+                {
+                    b.HasOne("GroceryApi.Models.Ingredient", "Ingredient")
+                        .WithMany("UserIngredients")
+                        .HasForeignKey("IngredientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GroceryApi.Models.User", "User")
+                        .WithMany("UserIngredients")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Ingredient");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("GroceryApi.Models.Ingredient", b =>
+                {
+                    b.Navigation("RecipeIngredients");
+
+                    b.Navigation("UserIngredients");
                 });
 
             modelBuilder.Entity("GroceryApi.Models.Recipe", b =>
                 {
-                    b.Navigation("Ingredients");
+                    b.Navigation("RecipeIngredients");
                 });
 
             modelBuilder.Entity("GroceryApi.Models.User", b =>
                 {
-                    b.Navigation("GroceryItems");
+                    b.Navigation("UserIngredients");
                 });
 #pragma warning restore 612, 618
         }

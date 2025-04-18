@@ -5,11 +5,23 @@
 namespace GroceryApi.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class AddUserIngredients : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.CreateTable(
+                name: "Ingredients",
+                columns: table => new
+                {
+                    IngredientId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Name = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Ingredients", x => x.IngredientId);
+                });
+
             migrationBuilder.CreateTable(
                 name: "Recipes",
                 columns: table => new
@@ -41,11 +53,17 @@ namespace GroceryApi.Migrations
                 columns: table => new
                 {
                     RecipeId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    IngredientName = table.Column<string>(type: "nvarchar(450)", nullable: false)
+                    IngredientId = table.Column<string>(type: "nvarchar(450)", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_RecipeIngredients", x => new { x.RecipeId, x.IngredientName });
+                    table.PrimaryKey("PK_RecipeIngredients", x => new { x.RecipeId, x.IngredientId });
+                    table.ForeignKey(
+                        name: "FK_RecipeIngredients_Ingredients_IngredientId",
+                        column: x => x.IngredientId,
+                        principalTable: "Ingredients",
+                        principalColumn: "IngredientId",
+                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_RecipeIngredients_Recipes_RecipeId",
                         column: x => x.RecipeId,
@@ -55,18 +73,23 @@ namespace GroceryApi.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "GroceryItems",
+                name: "UserIngredients",
                 columns: table => new
                 {
-                    ItemId = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    Name = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                    IngredientId = table.Column<string>(type: "nvarchar(450)", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_GroceryItems", x => x.ItemId);
+                    table.PrimaryKey("PK_UserIngredients", x => new { x.UserId, x.IngredientId });
                     table.ForeignKey(
-                        name: "FK_GroceryItems_Users_UserId",
+                        name: "FK_UserIngredients_Ingredients_IngredientId",
+                        column: x => x.IngredientId,
+                        principalTable: "Ingredients",
+                        principalColumn: "IngredientId",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_UserIngredients_Users_UserId",
                         column: x => x.UserId,
                         principalTable: "Users",
                         principalColumn: "UserId",
@@ -74,25 +97,33 @@ namespace GroceryApi.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_GroceryItems_UserId",
-                table: "GroceryItems",
-                column: "UserId");
+                name: "IX_RecipeIngredients_IngredientId",
+                table: "RecipeIngredients",
+                column: "IngredientId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserIngredients_IngredientId",
+                table: "UserIngredients",
+                column: "IngredientId");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "GroceryItems");
-
-            migrationBuilder.DropTable(
                 name: "RecipeIngredients");
 
             migrationBuilder.DropTable(
-                name: "Users");
+                name: "UserIngredients");
 
             migrationBuilder.DropTable(
                 name: "Recipes");
+
+            migrationBuilder.DropTable(
+                name: "Ingredients");
+
+            migrationBuilder.DropTable(
+                name: "Users");
         }
     }
 }
