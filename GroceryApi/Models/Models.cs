@@ -29,6 +29,7 @@ namespace GroceryApi.Models
         public string Name { get; set; }
         public string Instructions { get; set; }
         public int IngredientCount { get; set; }
+        public int MajorIngredientCount { get; set; }
         public List<RecipeIngredient> RecipeIngredients { get; set; }
     }
 
@@ -36,6 +37,7 @@ namespace GroceryApi.Models
     {
         public string RecipeId { get; set; }
         public string IngredientId { get; set; }
+        public bool IsMajor { get; set; }
         public Recipe Recipe { get; set; }
         public Ingredient Ingredient { get; set; }
     }
@@ -45,6 +47,7 @@ namespace GroceryApi.Models
         public string RecipeId { get; set; }
         public string Name { get; set; }
         public int IngredientCount { get; set; }
+        public int MajorIngredientCount { get; set; }
         public int MatchCount { get; set; }
         public double MatchPercent { get; set; }
     }
