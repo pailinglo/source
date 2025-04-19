@@ -54,9 +54,14 @@ namespace GroceryApi.Migrations
                 END
             ");
 
-            // Update stored procedure to count major ingredients
+            // Drop existing GetRecommendedRecipes procedure if it exists
             migrationBuilder.Sql(@"
-                DROP PROCEDURE IF EXISTS GetRecommendedRecipes;
+                IF EXISTS (SELECT * FROM sys.procedures WHERE name = 'GetRecommendedRecipes')
+                DROP PROCEDURE GetRecommendedRecipes;
+            ");
+
+            // Create updated GetRecommendedRecipes procedure
+            migrationBuilder.Sql(@"
                 CREATE PROCEDURE GetRecommendedRecipes
                     @UserId VARCHAR(50)
                 AS
@@ -84,8 +89,13 @@ namespace GroceryApi.Migrations
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            // Drop trigger
             migrationBuilder.Sql("DROP TRIGGER IF EXISTS UpdateIngredientCounts");
+
+            // Drop updated procedure
             migrationBuilder.Sql("DROP PROCEDURE IF EXISTS GetRecommendedRecipes");
+
+            // Drop columns
             migrationBuilder.DropColumn(name: "IsMajor", table: "RecipeIngredients");
             migrationBuilder.DropColumn(name: "MajorIngredientCount", table: "Recipes");
 
