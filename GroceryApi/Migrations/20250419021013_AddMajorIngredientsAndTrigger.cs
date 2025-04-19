@@ -38,18 +38,18 @@ namespace GroceryApi.Migrations
                     SET IngredientCount = (
                         SELECT COUNT(*) 
                         FROM RecipeIngredients ri 
-                        WHERE ri.recipe_id = r.recipe_id
+                        WHERE ri.RecipeId = r.RecipeId
                     ),
                     MajorIngredientCount = (
                         SELECT COUNT(*) 
                         FROM RecipeIngredients ri 
-                        WHERE ri.recipe_id = r.recipe_id AND ri.IsMajor = 1
+                        WHERE ri.RecipeId = r.RecipeId AND ri.IsMajor = 1
                     )
                     FROM Recipes r
-                    WHERE r.recipe_id IN (
-                        SELECT recipe_id FROM inserted
+                    WHERE r.RecipeId IN (
+                        SELECT RecipeId FROM inserted
                         UNION
-                        SELECT recipe_id FROM deleted
+                        SELECT RecipeId FROM deleted
                     );
                 END
             ");
@@ -64,18 +64,18 @@ namespace GroceryApi.Migrations
                     SET NOCOUNT ON;
                     DECLARE @UserIngredients TABLE (IngredientId VARCHAR(50));
                     INSERT INTO @UserIngredients
-                    SELECT ingredient_id FROM UserIngredients WHERE user_id = @UserId;
+                    SELECT IngredientId FROM UserIngredients WHERE UserId = @UserId;
 
-                    SELECT r.recipe_id AS RecipeId, r.name AS Name, 
+                    SELECT r.RecipeId AS RecipeId, r.Name AS Name, 
                            r.IngredientCount AS IngredientCount, 
                            r.MajorIngredientCount AS MajorIngredientCount,
                            COUNT(*) AS MatchCount, 
                            CAST(COUNT(*) AS FLOAT) / r.MajorIngredientCount AS MatchPercent
                     FROM Recipes r
-                    INNER JOIN RecipeIngredients ri ON r.recipe_id = ri.recipe_id
-                    WHERE ri.ingredient_id IN (SELECT IngredientId FROM @UserIngredients)
+                    INNER JOIN RecipeIngredients ri ON r.RecipeId = ri.RecipeId
+                    WHERE ri.IngredientId IN (SELECT IngredientId FROM @UserIngredients)
                     AND ri.IsMajor = 1
-                    GROUP BY r.recipe_id, r.name, r.IngredientCount, r.MajorIngredientCount
+                    GROUP BY r.RecipeId, r.Name, r.IngredientCount, r.MajorIngredientCount
                     HAVING CAST(COUNT(*) AS FLOAT) / r.MajorIngredientCount >= 0.7
                     ORDER BY COUNT(*) DESC;
                 END
@@ -98,14 +98,14 @@ namespace GroceryApi.Migrations
                     SET NOCOUNT ON;
                     DECLARE @UserIngredients TABLE (IngredientId VARCHAR(50));
                     INSERT INTO @UserIngredients
-                    SELECT ingredient_id FROM UserIngredients WHERE user_id = @UserId;
+                    SELECT IngredientId FROM UserIngredients WHERE UserId = @UserId;
 
-                    SELECT r.recipe_id AS RecipeId, r.name AS Name, r.IngredientCount AS IngredientCount,
+                    SELECT r.RecipeId AS RecipeId, r.Name AS Name, r.IngredientCount AS IngredientCount,
                            COUNT(*) AS MatchCount, CAST(COUNT(*) AS FLOAT) / r.IngredientCount AS MatchPercent
                     FROM Recipes r
-                    INNER JOIN RecipeIngredients ri ON r.recipe_id = ri.recipe_id
-                    WHERE ri.ingredient_id IN (SELECT IngredientId FROM @UserIngredients)
-                    GROUP BY r.recipe_id, r.name, r.IngredientCount
+                    INNER JOIN RecipeIngredients ri ON r.RecipeId = ri.RecipeId
+                    WHERE ri.IngredientId IN (SELECT IngredientId FROM @UserIngredients)
+                    GROUP BY r.RecipeId, r.Name, r.IngredientCount
                     HAVING CAST(COUNT(*) AS FLOAT) / r.IngredientCount >= 0.7
                     ORDER BY COUNT(*) DESC;
                 END
