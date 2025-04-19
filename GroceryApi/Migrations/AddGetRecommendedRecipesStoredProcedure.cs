@@ -14,15 +14,15 @@ namespace GroceryApi.Migrations
                     SET NOCOUNT ON;
                     DECLARE @UserIngredients TABLE (IngredientId VARCHAR(50));
                     INSERT INTO @UserIngredients
-                    SELECT ingredient_id FROM UserIngredients WHERE user_id = @UserId;
+                    SELECT ingredientid FROM UserIngredients WHERE userid = @UserId;
 
-                    SELECT r.recipe_id AS RecipeId, r.name AS Name, r.ingredient_count AS IngredientCount,
-                           COUNT(*) AS MatchCount, CAST(COUNT(*) AS FLOAT) / r.ingredient_count AS MatchPercent
+                    SELECT r.recipeid AS RecipeId, r.name AS Name, r.ingredientcount AS IngredientCount,
+                           COUNT(*) AS MatchCount, CAST(COUNT(*) AS FLOAT) / r.ingredientcount AS MatchPercent
                     FROM Recipes r
-                    INNER JOIN RecipeIngredients ri ON r.recipe_id = ri.recipe_id
-                    WHERE ri.ingredient_id IN (SELECT IngredientId FROM @UserIngredients)
-                    GROUP BY r.recipe_id, r.name, r.ingredient_count
-                    HAVING CAST(COUNT(*) AS FLOAT) / r.ingredient_count >= 0.7
+                    INNER JOIN RecipeIngredients ri ON r.recipeid = ri.recipeid
+                    WHERE ri.ingredientid IN (SELECT IngredientId FROM @UserIngredients)
+                    GROUP BY r.recipeid, r.name, r.ingredientcount
+                    HAVING CAST(COUNT(*) AS FLOAT) / r.ingredientcount >= 0.7
                     ORDER BY COUNT(*) DESC;
                 END
             ");

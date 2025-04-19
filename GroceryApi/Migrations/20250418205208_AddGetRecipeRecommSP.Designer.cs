@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GroceryApi.Migrations
 {
     [DbContext(typeof(GroceryContext))]
-    [Migration("20250418180805_AddUserIngredients")]
-    partial class AddUserIngredients
+    [Migration("20250418205208_AddGetRecipeRecommSP")]
+    partial class AddGetRecipeRecommSP
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -72,6 +72,30 @@ namespace GroceryApi.Migrations
                     b.HasIndex("IngredientId");
 
                     b.ToTable("RecipeIngredients");
+                });
+
+            modelBuilder.Entity("GroceryApi.Models.RecipeRecommendation", b =>
+                {
+                    b.Property<int>("IngredientCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MatchCount")
+                        .HasColumnType("int");
+
+                    b.Property<double>("MatchPercent")
+                        .HasColumnType("float");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RecipeId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.ToTable((string)null);
+
+                    b.ToView(null, (string)null);
                 });
 
             modelBuilder.Entity("GroceryApi.Models.User", b =>
