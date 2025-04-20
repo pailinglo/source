@@ -24,7 +24,35 @@ builder.Services.AddAuthentication("Bearer")
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Configure CORS policy to allow requests from specific origins
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("DevPolicy", policy => policy
+        .AllowAnyOrigin()
+        .AllowAnyHeader()
+        .AllowAnyMethod());
+
+    options.AddPolicy("ProdPolicy", policy => policy
+        .WithOrigins("https://your-production-app.com")
+        .AllowAnyHeader()
+        .AllowAnyMethod());
+});
+
+
+builder.WebHost.UseUrls("http://0.0.0.0:5000", "https://0.0.0.0:5001");
+
 var app = builder.Build();
+
+// Apply policy based on environment
+if (app.Environment.IsDevelopment())
+{
+    app.UseCors("DevPolicy");
+}
+else
+{
+    app.UseCors("ProdPolicy");
+}
+
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
