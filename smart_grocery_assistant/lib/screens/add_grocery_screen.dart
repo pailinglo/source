@@ -1,15 +1,21 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:camera/camera.dart';
 import '../models/inventory_model.dart';
+import '../services/api_service.dart';
+import '../database/database_helper.dart';
 import 'scan_receipt_screen.dart';
 
 class AddGroceryScreen extends StatefulWidget {
   final List<CameraDescription> cameras;
+  final String userId;
 
-  const AddGroceryScreen({super.key, required this.cameras});
+  const AddGroceryScreen({
+    super.key,
+    required this.cameras,
+    required this.userId,
+  });
 
   @override
   _AddGroceryScreenState createState() => _AddGroceryScreenState();
@@ -20,43 +26,52 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
   late stt.SpeechToText _speech;
   bool _isListening = false;
   String _voiceInput = '';
-  String _lastAdded = ''; // Track last added item to filter new input
+  String _lastAdded = '';
+  late ApiService _apiService;
 
   @override
   void initState() {
     super.initState();
     _speech = stt.SpeechToText();
+    _apiService = ApiService(DatabaseHelper.instance);
+    _loadItems();
+    _cacheIngredients();
+  }
+
+  void _loadItems() {
+    final inventory = Provider.of<InventoryModel>(context, listen: false);
+    inventory.loadItems();
+  }
+
+  void _cacheIngredients() async {
+    try {
+      await _apiService.cacheIngredients();
+    } catch (e) {
+      print('Failed to cache ingredients: $e');
+    }
   }
 
   void _addItem(InventoryModel inventory) {
     if (_controller.text.isNotEmpty) {
       String item = _controller.text.trim();
-      print('Adding item: $item');
       inventory.addItem(item);
-      _lastAdded = item; // Store for filtering next input
+      _lastAdded = item;
       _voiceInput = '';
       _controller.clear();
       setState(() {});
-      print('Cleared input, last added: $_lastAdded');
     }
   }
 
   void _startListening() async {
-    if (_isListening) {
-      // Already listening, no need to restart
-      return;
-    }
+    if (_isListening) return;
 
-    print('Starting speech recognition');
     bool available = await _speech.initialize(
       onStatus: (status) {
-        print('Speech status: $status');
         if (status == 'done' || status == 'notListening') {
           setState(() => _isListening = false);
         }
       },
       onError: (error) {
-        print('Speech recognition error: $error');
         setState(() => _isListening = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Speech recognition failed: $error')),
@@ -72,35 +87,28 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
         onResult: (result) {
           setState(() {
             String recognized = result.recognizedWords;
-            // Show only new words since last added item
             if (_lastAdded.isNotEmpty && recognized.startsWith(_lastAdded)) {
               _voiceInput = recognized.substring(_lastAdded.length).trim();
             } else {
               _voiceInput = recognized;
             }
             _controller.text = _voiceInput;
-            print('Recognized: $recognized, Displayed: $_voiceInput');
           });
         },
-        listenFor: Duration(seconds: 60), // Longer session for multiple items
-        pauseFor: Duration(seconds: 5),
+        listenFor: const Duration(seconds: 60),
+        pauseFor: const Duration(seconds: 5),
         partialResults: true,
         cancelOnError: true,
       );
     } else {
       setState(() => _isListening = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Speech recognition not available. Please enable microphone and speech permissions.',
-          ),
-        ),
+        const SnackBar(content: Text('Speech recognition not available.')),
       );
     }
   }
 
   void _stopListening() {
-    print('Stopping speech recognition, current input: $_voiceInput');
     _speech.stop();
     _speech.cancel();
     setState(() => _isListening = false);
@@ -110,7 +118,6 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
       _lastAdded = _voiceInput.trim();
       _voiceInput = '';
       _controller.clear();
-      print('Added item on stop: $_lastAdded');
     }
   }
 
@@ -199,6 +206,7 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                     : ListView.builder(
                       itemCount: inventory.items.length,
                       itemBuilder: (context, index) {
+                        final item = inventory.items[index];
                         return Card(
                           elevation: 2,
                           margin: const EdgeInsets.symmetric(
@@ -208,15 +216,24 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                           color: const Color(0xFFEDEDED),
                           child: ListTile(
                             title: Text(
-                              inventory.items[index],
+                              item['name'],
                               style: const TextStyle(color: Color(0xFF333333)),
+                            ),
+                            subtitle: Text(
+                              item['synced'] == 1 ? 'Synced' : 'Pending sync',
+                              style: TextStyle(
+                                color:
+                                    item['synced'] == 1
+                                        ? Colors.green
+                                        : Colors.orange,
+                              ),
                             ),
                             trailing: IconButton(
                               icon: const Icon(
                                 Icons.delete,
                                 color: Color(0xFFD32323),
                               ),
-                              onPressed: () => inventory.removeItem(index),
+                              onPressed: () => inventory.removeItem(item['id']),
                             ),
                           ),
                         );

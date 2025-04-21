@@ -52,8 +52,20 @@ namespace GroceryApi.Models
         public double MatchPercent { get; set; }
     }
 
-    public class UserIngredientDto
+    public class BatchIngredientsDto
+    {
+        public List<BatchIngredientItem> Items { get; set; }
+    }
+
+    public class BatchIngredientItem
+    {
+        public string Name { get; set; }
+        public string OriginalName { get; set; }
+    }
+
+    public class IngredientDto
     {
         public string IngredientId { get; set; }
+        public string Name { get; set; }
     }
 }

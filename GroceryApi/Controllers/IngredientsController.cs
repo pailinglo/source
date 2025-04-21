@@ -17,14 +17,16 @@ namespace GroceryApi.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Ingredient>>> GetIngredients([FromQuery] string? name = null)
+        public async Task<ActionResult<IEnumerable<IngredientDto>>> GetIngredients()
         {
-            var query = _context.Ingredients.AsQueryable();
-            if (!string.IsNullOrEmpty(name))
-            {
-                query = query.Where(i => i.Name.Contains(name));
-            }
-            return await query.ToListAsync();
+            var ingredients = await _context.Ingredients
+                .Select(i => new IngredientDto
+                {
+                    IngredientId = i.IngredientId,
+                    Name = i.Name
+                })
+                .ToListAsync();
+            return Ok(ingredients);
         }
     }
 }

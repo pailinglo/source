@@ -2,6 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GroceryApi.Data;
 using GroceryApi.Models;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace GroceryApi.Controllers
 {
@@ -9,50 +12,49 @@ namespace GroceryApi.Controllers
     [ApiController]
     public class UserIngredientsController : ControllerBase
     {
-        private readonly GroceryContext _context;
+        private readonly GroceryContext? _context;
 
         public UserIngredientsController(GroceryContext context)
         {
             _context = context;
         }
 
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<Ingredient>>> GetUserIngredients(string userId)
+        [HttpPost("batch")]
+        public async Task<IActionResult> AddIngredients(string userId, [FromBody] BatchIngredientsDto dto)
         {
-            return await _context.UserIngredients
-                .Where(ui => ui.UserId == userId)
-                .Include(ui => ui.Ingredient)
-                .Select(ui => ui.Ingredient)
-                .ToListAsync();
-        }
-
-        [HttpPost]
-        public async Task<ActionResult<UserIngredient>> AddUserIngredient(string userId, [FromBody] UserIngredientDto dto)
-        {
-            var userIngredient = new UserIngredient
+            if (_context == null)
             {
-                UserId = userId,
-                IngredientId = dto.IngredientId
-            };
-            _context.UserIngredients.Add(userIngredient);
-            await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetUserIngredients), new { userId }, userIngredient);
-        }
+                return Problem("Database context is not available.");
+            }
 
-        [HttpDelete("{ingredientId}")]
-        public async Task<IActionResult> DeleteUserIngredient(string userId, string ingredientId)
-        {
-            var userIngredient = await _context.UserIngredients
-                .FirstOrDefaultAsync(ui => ui.UserId == userId && ui.IngredientId == ingredientId);
-            if (userIngredient == null) return NotFound();
-            _context.UserIngredients.Remove(userIngredient);
-            await _context.SaveChangesAsync();
-            return NoContent();
-        }
-    }
+            var ingredients = await _context.Ingredients
+                .Where(i => dto.Items.Select(x => x.Name.ToLower()).Contains(i.Name.ToLower()))
+                .ToListAsync();
 
-    public class UserIngredientDto
-    {
-        public string IngredientId { get; set; }
+            var newUserIngredients = new List<UserIngredient>();
+            foreach (var item in dto.Items)
+            {
+                var ingredient = ingredients.FirstOrDefault(i => i.Name.ToLower() == item.Name.ToLower());
+                if (ingredient == null)
+                {
+                    ingredient = new Ingredient
+                    {
+                        IngredientId = $"ing-{item.Name.ToLower().Replace(' ', '-')}",
+                        Name = item.Name
+                    };
+                    _context.Ingredients.Add(ingredient);
+                }
+
+                newUserIngredients.Add(new UserIngredient
+                {
+                    UserId = userId,
+                    IngredientId = ingredient.IngredientId
+                });
+            }
+
+            _context.UserIngredients.AddRange(newUserIngredients);
+            await _context.SaveChangesAsync();
+            return Ok();
+        }
     }
 }

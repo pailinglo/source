@@ -19,7 +19,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2, // Updated for new columns and ingredients_cache
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE ingredients (
@@ -38,6 +38,10 @@ class DatabaseHelper {
         await db.execute('''
           CREATE TABLE groceries (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            mapped_name TEXT NOT NULL,
+            synced INTEGER NOT NULL DEFAULT 0,
             ingredient_id INTEGER,
             FOREIGN KEY (ingredient_id) REFERENCES ingredients(id)
           )
@@ -58,7 +62,43 @@ class DatabaseHelper {
             PRIMARY KEY (recipe_id, ingredient_id)
           )
         ''');
+        await db.execute('''
+          CREATE TABLE ingredients_cache (
+            ingredient_id TEXT PRIMARY KEY,
+            name TEXT NOT NULL
+          )
+        ''');
         await _seedInitialData(db);
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          // Add user_id, name, mapped_name, synced to groceries
+          await db.execute('''
+            CREATE TABLE groceries_new (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              user_id TEXT NOT NULL,
+              name TEXT NOT NULL,
+              mapped_name TEXT NOT NULL,
+              synced INTEGER NOT NULL DEFAULT 0,
+              ingredient_id INTEGER,
+              FOREIGN KEY (ingredient_id) REFERENCES ingredients(id)
+            )
+          ''');
+          await db.execute('''
+            INSERT INTO groceries_new (id, user_id, name, mapped_name, ingredient_id)
+            SELECT id, '123', i.name, i.name, ingredient_id
+            FROM groceries g
+            JOIN ingredients i ON g.ingredient_id = i.id
+          ''');
+          await db.execute('DROP TABLE groceries');
+          await db.execute('ALTER TABLE groceries_new RENAME TO groceries');
+          await db.execute('''
+            CREATE TABLE ingredients_cache (
+              ingredient_id TEXT PRIMARY KEY,
+              name TEXT NOT NULL
+            )
+          ''');
+        }
       },
     );
   }
@@ -70,6 +110,7 @@ class DatabaseHelper {
     await db.insert('ingredients', {'name': 'pasta'});
     await db.insert('ingredients', {'name': 'basil'});
     await db.insert('ingredients', {'name': 'rice'});
+    await db.insert('ingredients', {'name': 'potato'});
 
     // Insert synonyms
     await db.insert('synonyms', {'synonym': 'tomatoes', 'ingredient_id': 1});
@@ -78,6 +119,8 @@ class DatabaseHelper {
       'ingredient_id': 2,
     });
     await db.insert('synonyms', {'synonym': 'spaghetti', 'ingredient_id': 3});
+    await db.insert('synonyms', {'synonym': 'potatoes', 'ingredient_id': 6});
+    await db.insert('synonyms', {'synonym': 'taters', 'ingredient_id': 6});
 
     // Insert sample recipes
     await db.insert('recipes', {
@@ -112,7 +155,7 @@ class DatabaseHelper {
     }); // Rice
   }
 
-  Future<int> _getOrCreateIngredientId(String name) async {
+  Future<int> _getOrCreateLocalIngredientId(String name) async {
     final db = await database;
     name = name.toLowerCase().trim();
 
@@ -134,20 +177,57 @@ class DatabaseHelper {
     return id;
   }
 
-  Future<void> insertGrocery(String name) async {
+  Future<String?> getMappedName(String name) async {
     final db = await database;
-    final ingredientId = await _getOrCreateIngredientId(name);
-    await db.insert('groceries', {'ingredient_id': ingredientId});
+    name = name.toLowerCase().trim();
+
+    var result = await db.query(
+      'ingredients',
+      where: 'name = ?',
+      whereArgs: [name],
+    );
+    if (result.isNotEmpty) return result.first['name'] as String;
+
+    result = await db.query(
+      'synonyms',
+      where: 'synonym = ?',
+      whereArgs: [name],
+    );
+    if (result.isNotEmpty) {
+      final ingredientId = result.first['ingredient_id'] as int;
+      result = await db.query(
+        'ingredients',
+        where: 'id = ?',
+        whereArgs: [ingredientId],
+      );
+      return result.first['name'] as String;
+    }
+    return null;
   }
 
-  Future<List<Map<String, dynamic>>> getGroceries() async {
+  Future<void> insertGrocery(
+    String userId,
+    String name,
+    String mappedName,
+  ) async {
     final db = await database;
-    final result = await db.rawQuery('''
-      SELECT g.id, i.name
-      FROM groceries g
-      JOIN ingredients i ON g.ingredient_id = i.id
-    ''');
-    return result;
+    final ingredientId = await _getOrCreateLocalIngredientId(mappedName);
+    await db.insert('groceries', {
+      'user_id': userId,
+      'name': name,
+      'mapped_name': mappedName,
+      'ingredient_id': ingredientId,
+      'synced': 0,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<List<Map<String, dynamic>>> getGroceries(String userId) async {
+    final db = await database;
+    return await db.query(
+      'groceries',
+      where: 'user_id = ?',
+      whereArgs: [userId],
+    );
   }
 
   Future<void> deleteGrocery(int id) async {
@@ -155,18 +235,35 @@ class DatabaseHelper {
     await db.delete('groceries', where: 'id = ?', whereArgs: [id]);
   }
 
-  Future<List<Map<String, dynamic>>> getRecommendedRecipes() async {
+  Future<void> cacheIngredients(List<Map<String, dynamic>> ingredients) async {
     final db = await database;
-    return await db.rawQuery('''
-      SELECT r.id, r.name, r.instructions,
-             COUNT(CASE WHEN g.ingredient_id IS NOT NULL THEN 1 END) * 100.0 / COUNT(*) AS match_percentage
-      FROM recipes r
-      LEFT JOIN recipe_ingredients ri ON r.id = ri.recipe_id
-      LEFT JOIN groceries g ON ri.ingredient_id = g.ingredient_id
-      GROUP BY r.id, r.name, r.instructions
-      HAVING match_percentage >= 70
-      ORDER BY match_percentage DESC
-    ''');
+    final batch = db.batch();
+    for (var ingredient in ingredients) {
+      batch.insert('ingredients_cache', {
+        'ingredient_id': ingredient['ingredientId'],
+        'name': ingredient['name'],
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+    }
+    await batch.commit();
+  }
+
+  Future<List<Map<String, dynamic>>> getCachedIngredients() async {
+    final db = await database;
+    return await db.query('ingredients_cache');
+  }
+
+  Future<void> markAsSynced(List<int> ids) async {
+    final db = await database;
+    final batch = db.batch();
+    for (var id in ids) {
+      batch.update(
+        'groceries',
+        {'synced': 1},
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+    }
+    await batch.commit();
   }
 
   Future<void> close() async {
@@ -174,8 +271,6 @@ class DatabaseHelper {
     db.close();
   }
 
-  // This function is for testing purposes only
-  // It deletes the database and all its contents
   Future<void> resetDatabase() async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, 'grocery_assistant.db');

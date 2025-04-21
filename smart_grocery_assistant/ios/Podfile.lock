@@ -1,6 +1,8 @@
 PODS:
   - camera_avfoundation (0.9.13):
     - Flutter
+  - connectivity_plus (6.0.5):
+    - Flutter
   - Flutter (1.0.0)
   - google_mlkit_barcode_scanning (0.14.1):
     - Flutter
@@ -245,6 +247,7 @@ PODS:
 
 DEPENDENCIES:
   - camera_avfoundation (from `.symlinks/plugins/camera_avfoundation/ios`)
+  - connectivity_plus (from `.symlinks/plugins/connectivity_plus/ios`)
   - Flutter (from `Flutter`)
   - google_mlkit_barcode_scanning (from `.symlinks/plugins/google_mlkit_barcode_scanning/ios`)
   - google_mlkit_commons (from `.symlinks/plugins/google_mlkit_commons/ios`)
@@ -306,6 +309,8 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   camera_avfoundation:
     :path: ".symlinks/plugins/camera_avfoundation/ios"
+  connectivity_plus:
+    :path: ".symlinks/plugins/connectivity_plus/ios"
   Flutter:
     :path: Flutter
   google_mlkit_barcode_scanning:
@@ -345,6 +350,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   camera_avfoundation: 6ea6b97bcca5f02bbc6fa2007a6b1ad192bcc323
+  connectivity_plus: 57d5d18b49d997fcf212143c3c6fda984fe824fb
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
   google_mlkit_barcode_scanning: e6c5e596d4dd5342e51516dcf99becb9154bae2d
   google_mlkit_commons: 2544377e5503bf78ee7412ccfce0394c2dcb8a6b

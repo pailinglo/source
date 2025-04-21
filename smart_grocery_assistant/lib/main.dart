@@ -1,23 +1,38 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:provider/provider.dart';
 import 'screens/add_grocery_screen.dart';
 import 'screens/scan_receipt_screen.dart';
 import 'models/inventory_model.dart';
+import 'database/database_helper.dart';
 
 List<CameraDescription> cameras = [];
 
+class MyHttpOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    return super.createHttpClient(context)
+      ..badCertificateCallback =
+          (X509Certificate cert, String host, int port) => true;
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  HttpOverrides.global = MyHttpOverrides();
   try {
     cameras = await availableCameras();
     print('Available cameras: ${cameras.length}');
   } catch (e) {
     print('Error initializing cameras: $e');
   }
+  final dbHelper = DatabaseHelper.instance;
   runApp(
     ChangeNotifierProvider(
-      create: (context) => InventoryModel(),
+      create:
+          (context) =>
+              InventoryModel(dbHelper, '123'), // Replace '123' with auth
       child: const SmartGroceryApp(),
     ),
   );
@@ -82,7 +97,9 @@ class HomeScreen extends StatelessWidget {
                   () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => AddGroceryScreen(cameras: cameras),
+                      builder:
+                          (context) =>
+                              AddGroceryScreen(cameras: cameras, userId: '123'),
                     ),
                   ),
               child: Container(
@@ -134,7 +151,9 @@ class HomeScreen extends StatelessWidget {
                   () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => AddGroceryScreen(cameras: cameras),
+                      builder:
+                          (context) =>
+                              AddGroceryScreen(cameras: cameras, userId: '123'),
                     ),
                   ),
               child: const Text('Add Groceries'),
