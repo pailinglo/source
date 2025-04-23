@@ -2,7 +2,7 @@ import requests
 import time
 import pyodbc
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 class SpoonacularCrawler:
@@ -16,6 +16,12 @@ class SpoonacularCrawler:
         # Initialize database connection
         self.conn = pyodbc.connect(db_connection_string)
         self.cursor = self.conn.cursor()
+        self.processed_ids = self._load_processed_ids()
+
+    def _load_processed_ids(self):
+        """Load all already processed recipe IDs from database"""
+        self.cursor.execute("SELECT recipeId FROM RawRecipeData")
+        return {row[0] for row in self.cursor.fetchall()}
         
     def fetch_recipe(self, recipe_id):
         url = self.base_url.format(recipe_id=recipe_id, api_key=self.api_key)
@@ -44,7 +50,7 @@ class SpoonacularCrawler:
             self.cursor.execute("""
                 INSERT INTO RawRecipeData (recipeId, rawResponse, fetchDateTime)
                 VALUES (?, ?, ?)
-            """, recipe_id, json.dumps(response), datetime.utcnow())
+            """, recipe_id, json.dumps(response), datetime.now(timezone.utc))
             self.conn.commit()
             return True
         except pyodbc.Error as e:
@@ -69,7 +75,7 @@ class SpoonacularCrawler:
                 'vegan': response.get('vegan', False),
                 'preparationMinutes': response.get('preparationMinutes'),
                 'cookingMinutes': response.get('cookingMinutes'),
-                'fetchDateTime': datetime.utcnow()
+                'fetchDateTime': datetime.now(timezone.utc)
             }
             
             # Save recipe
@@ -117,40 +123,38 @@ class SpoonacularCrawler:
             self.parse_and_save_recipe(recipe_id, response)
         return recipe_id
     
-    def crawl_recipes(self, start_id=1, end_id=None, batch_size=100):
+    def crawl_recipes(self, start_id=1, end_id=None, batch_size=100, force_retry_failed=False):
         current_id = start_id
-        processed_ids = set()
         
-        # Get already processed IDs from database
-        self.cursor.execute("SELECT recipeId FROM RawRecipeData")
-        processed_ids.update(row[0] for row in self.cursor.fetchall())
+        if force_retry_failed:
+            # If forcing retry, clear the processed IDs cache
+            self.processed_ids = set()
         
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             while end_id is None or current_id <= end_id:
-                # Prepare batch of IDs to process (skip already processed ones)
                 batch = []
                 while len(batch) < batch_size and (end_id is None or current_id <= end_id):
-                    if current_id not in processed_ids:
+                    if current_id not in self.processed_ids:
                         batch.append(current_id)
                     current_id += 1
                 
                 if not batch:
-                    if end_id is None:
-                        # No more recipes to process (reached end of unknown range)
-                        break
-                    continue
+                    print(f"No more recipes to process in range {start_id}-{end_id or '∞'}")
+                    break
                 
-                # Process batch with rate limiting
+                print(f"Processing batch: {batch[0]} to {batch[-1]}")
+                
                 futures = {executor.submit(self.process_recipe, rid): rid for rid in batch}
                 for future in as_completed(futures):
                     rid = futures[future]
                     try:
-                        future.result()
+                        success = future.result()
+                        if success:
+                            self.processed_ids.add(rid)  # Mark as processed
                     except Exception as e:
                         print(f"Error processing recipe {rid}: {str(e)}")
                 
-                # Rate limiting - sleep between batches
-                time.sleep(1)
+                time.sleep(1)  # Rate limiting
     
     def close(self):
         self.cursor.close()
@@ -174,6 +178,6 @@ if __name__ == "__main__":
     try:
         # Start crawling from ID 1 to (unknown) - will stop when no more recipes found
         # Alternatively, set an end_id if you know the maximum
-        crawler.crawl_recipes(start_id=1, end_id=3, batch_size=10)
+        crawler.crawl_recipes(start_id=1, end_id=5, batch_size=10)
     finally:
         crawler.close()
