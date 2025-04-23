@@ -111,7 +111,7 @@ class SpoonacularCrawler:
             return False
         
         try:
-            # Extract recipe data
+            # Extract all recipe data including new fields
             recipe_data = {
                 'id': response.get('id'),
                 'image': response.get('image'),
@@ -123,17 +123,23 @@ class SpoonacularCrawler:
                 'vegan': response.get('vegan', False),
                 'preparationMinutes': response.get('preparationMinutes'),
                 'cookingMinutes': response.get('cookingMinutes'),
+                'glutenFree': response.get('glutenFree', False),
+                'veryPopular': response.get('veryPopular', False),
+                'aggregateLikes': response.get('aggregateLikes'),
+                'instructions': response.get('instructions'),
                 'fetchDateTime': datetime.now(timezone.utc)
             }
             
-            # Save recipe
+            # Save recipe (updated with new fields)
             self.cursor.execute("""
-                INSERT INTO Recipes (id, image, title, readyInMinutes, servings, sourceUrl, 
-                                   vegetarian, vegan, preparationMinutes, cookingMinutes, fetchDateTime)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO Recipes (
+                    id, image, title, readyInMinutes, servings, sourceUrl, 
+                    vegetarian, vegan, preparationMinutes, cookingMinutes,
+                    glutenFree, veryPopular, aggregateLikes, instructions, fetchDateTime
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, *recipe_data.values())
             
-            # Save ingredients
+            # Save ingredients (unchanged)
             for ingredient in response.get('extendedIngredients', []):
                 ingredient_data = {
                     'recipeId': recipe_data['id'],
@@ -147,13 +153,63 @@ class SpoonacularCrawler:
                 }
                 
                 self.cursor.execute("""
-                    INSERT INTO RecipeIngredients (recipeId, ingredientId, name, nameClean, 
-                                                original, originalName, amount, unit)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO RecipeIngredients (
+                        recipeId, ingredientId, name, nameClean, 
+                        original, originalName, amount, unit
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """, *ingredient_data.values())
+            
+            # Save cuisines (array handling)
+            for cuisine in response.get('cuisines', []):
+                # Ensure cuisine exists in lookup table
+                self.cursor.execute("""
+                    MERGE INTO Cuisines WITH (HOLDLOCK) AS target
+                    USING (SELECT ? AS name) AS source
+                    ON target.name = source.name
+                    WHEN NOT MATCHED THEN INSERT (name) VALUES (source.name);
+                """, cuisine)
+                
+                # Get cuisine ID
+                self.cursor.execute("SELECT id FROM Cuisines WHERE name = ?", cuisine)
+                cuisine_id = self.cursor.fetchone()[0]
+                
+                # Link recipe to cuisine
+                self.cursor.execute("""
+                    INSERT INTO RecipeCuisines (recipeId, cuisineId)
+                    VALUES (?, ?)
+                """, recipe_data['id'], cuisine_id)
+            
+            # Save dish types (array handling)
+            for dish_type in response.get('dishTypes', []):
+                # Ensure dish type exists in lookup table
+                self.cursor.execute("""
+                    MERGE INTO DishTypes WITH (HOLDLOCK) AS target
+                    USING (SELECT ? AS name) AS source
+                    ON target.name = source.name
+                    WHEN NOT MATCHED THEN INSERT (name) VALUES (source.name);
+                """, dish_type)
+                
+                # Get dish type ID
+                self.cursor.execute("SELECT id FROM DishTypes WHERE name = ?", dish_type)
+                dish_type_id = self.cursor.fetchone()[0]
+                
+                # Link recipe to dish type
+                self.cursor.execute("""
+                    INSERT INTO RecipeDishTypes (recipeId, dishTypeId)
+                    VALUES (?, ?)
+                """, recipe_data['id'], dish_type_id)
             
             self.conn.commit()
             return True
+            
+        except pyodbc.Error as e:
+            print(f"Database error with recipe {recipe_id}: {str(e)}")
+            self.conn.rollback()
+            return False
+        except Exception as e:
+            print(f"Unexpected error with recipe {recipe_id}: {str(e)}")
+            self.conn.rollback()
+            return False
             
         except pyodbc.Error as e:
             print(f"Error parsing/saving recipe {recipe_id}: {str(e)}")
@@ -227,7 +283,7 @@ class SpoonacularCrawler:
         self.conn.close()
 
 # Configuration
-API_KEY = "APIKEY"
+API_KEY = "APIKEY"  # Replace with your actual API key
 DB_CONNECTION_STRING = "DRIVER={ODBC Driver 17 for SQL Server};SERVER=(localdb)\\MSSQLLocalDB;DATABASE=RecipeDB;Trusted_Connection=yes;"
 IMAGE_STORAGE_PATH = "./recipe_images"  # Directory to store downloaded images
 
@@ -243,6 +299,6 @@ if __name__ == "__main__":
     
     try:
         # Start crawling from ID 1 to 100 (adjust as needed)
-        crawler.crawl_recipes(start_id=1, end_id=6)
+        crawler.crawl_recipes(start_id=1, end_id=9)
     finally:
         crawler.close()
