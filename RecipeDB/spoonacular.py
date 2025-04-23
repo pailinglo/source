@@ -1,17 +1,24 @@
+import os
 import requests
 import time
 import pyodbc
 import json
 from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from urllib.parse import urlparse
 
 class SpoonacularCrawler:
-    def __init__(self, api_key, db_connection_string, max_workers=1, request_timeout=5):
+    def __init__(self, api_key, db_connection_string, image_storage_path, 
+                 max_workers=1, request_timeout=5):
         self.api_key = api_key
         self.db_connection_string = db_connection_string
+        self.image_storage_path = image_storage_path
         self.max_workers = max_workers
         self.request_timeout = request_timeout
         self.base_url = "https://api.spoonacular.com/recipes/{recipe_id}/information?includeNutrition=false&apiKey={api_key}"
+        
+        # Ensure image storage directory exists
+        os.makedirs(self.image_storage_path, exist_ok=True)
         
         # Initialize database connection
         self.conn = pyodbc.connect(db_connection_string)
@@ -22,7 +29,48 @@ class SpoonacularCrawler:
         """Load all already processed recipe IDs from database"""
         self.cursor.execute("SELECT recipeId FROM RawRecipeData")
         return {row[0] for row in self.cursor.fetchall()}
+
+    def download_image(self, recipe_id, image_url):
+        if not image_url:
+            return False, None
         
+        try:
+            # Get the image file extension from URL
+            parsed = urlparse(image_url)
+            file_ext = os.path.splitext(parsed.path)[1].lower()
+            if not file_ext:
+                return False, None
+                
+            # Remove leading dot if present
+            file_ext = file_ext[1:] if file_ext.startswith('.') else file_ext
+            
+            # Create filename
+            filename = f"{recipe_id}.{file_ext}"
+            filepath = os.path.join(self.image_storage_path, filename)
+            
+            # Download the image
+            response = requests.get(image_url, stream=True, timeout=self.request_timeout)
+            if response.status_code == 200:
+                with open(filepath, 'wb') as f:
+                    for chunk in response.iter_content(1024):
+                        f.write(chunk)
+                
+                # Update database with download status
+                self.cursor.execute("""
+                    UPDATE Recipes 
+                    SET imageDownloaded = 1, imageFileType = ?
+                    WHERE id = ?
+                """, file_ext, recipe_id)
+                self.conn.commit()
+                
+                return True, file_ext
+            return False, None
+            
+        except Exception as e:
+            print(f"Error downloading image for recipe {recipe_id}: {str(e)}")
+            return False, None
+   
+    
     def fetch_recipe(self, recipe_id):
         url = self.base_url.format(recipe_id=recipe_id, api_key=self.api_key)
         try:
@@ -117,11 +165,29 @@ class SpoonacularCrawler:
             return False
     
     def process_recipe(self, recipe_id):
+        # Fetch recipe data
         recipe_id, response = self.fetch_recipe(recipe_id)
-        if response:
-            self.save_raw_response(recipe_id, response)
-            self.parse_and_save_recipe(recipe_id, response)
-        return recipe_id
+        if not response:
+            return False
+            
+        # Save raw response
+        if not self.save_raw_response(recipe_id, response):
+            return False
+            
+        # Parse and save recipe data
+        if not self.parse_and_save_recipe(recipe_id, response):
+            return False
+            
+        # Download image if available
+        image_url = response.get('image')
+        if image_url:
+            success, file_ext = self.download_image(recipe_id, image_url)
+            if success:
+                print(f"Successfully downloaded image for recipe {recipe_id} as {recipe_id}.{file_ext}")
+            else:
+                print(f"Failed to download image for recipe {recipe_id}")
+        
+        return True
     
     def crawl_recipes(self, start_id=1, end_id=None, batch_size=100, force_retry_failed=False):
         current_id = start_id
@@ -162,22 +228,21 @@ class SpoonacularCrawler:
 
 # Configuration
 API_KEY = "APIKEY"
-# DB_CONNECTION_STRING = "DRIVER={ODBC Driver 17 for SQL Server};SERVER=(localdb)\\MSSQLLocalDB;DATABASE=RecipeDB;UID=username;PWD=password"
 DB_CONNECTION_STRING = "DRIVER={ODBC Driver 17 for SQL Server};SERVER=(localdb)\\MSSQLLocalDB;DATABASE=RecipeDB;Trusted_Connection=yes;"
-# DB_CONNECTION_STRING = "Server=(localdb)\\MSSQLLocalDB;Database=GroceryDB;Trusted_Connection=True;TrustServerCertificate=True;"
+IMAGE_STORAGE_PATH = "./recipe_images"  # Directory to store downloaded images
 
 # Usage
 if __name__ == "__main__":
     crawler = SpoonacularCrawler(
         api_key=API_KEY,
         db_connection_string=DB_CONNECTION_STRING,
-        max_workers=1,  # Keep at 1 for strict rate limiting
+        image_storage_path=IMAGE_STORAGE_PATH,
+        max_workers=1,
         request_timeout=5
     )
     
     try:
-        # Start crawling from ID 1 to (unknown) - will stop when no more recipes found
-        # Alternatively, set an end_id if you know the maximum
-        crawler.crawl_recipes(start_id=1, end_id=5, batch_size=10)
+        # Start crawling from ID 1 to 100 (adjust as needed)
+        crawler.crawl_recipes(start_id=1, end_id=6)
     finally:
         crawler.close()
