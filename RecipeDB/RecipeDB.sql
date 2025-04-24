@@ -71,3 +71,6 @@ CREATE TABLE RecipeDishTypes (
     FOREIGN KEY (recipeId) REFERENCES Recipes(id),
     FOREIGN KEY (dishTypeId) REFERENCES DishTypes(id)
 );
+
+-- Add the sourceName column to Recipes table
+ALTER TABLE Recipes ADD sourceName NVARCHAR(100) NULL;

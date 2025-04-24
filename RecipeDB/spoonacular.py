@@ -119,6 +119,7 @@ class SpoonacularCrawler:
                 'readyInMinutes': response.get('readyInMinutes'),
                 'servings': response.get('servings'),
                 'sourceUrl': response.get('sourceUrl'),
+                'sourceName': response.get('sourceName'),
                 'vegetarian': response.get('vegetarian', False),
                 'vegan': response.get('vegan', False),
                 'preparationMinutes': response.get('preparationMinutes'),
@@ -133,10 +134,10 @@ class SpoonacularCrawler:
             # Save recipe (updated with new fields)
             self.cursor.execute("""
                 INSERT INTO Recipes (
-                    id, image, title, readyInMinutes, servings, sourceUrl, 
+                    id, image, title, readyInMinutes, servings, sourceUrl, sourceName,
                     vegetarian, vegan, preparationMinutes, cookingMinutes,
                     glutenFree, veryPopular, aggregateLikes, instructions, fetchDateTime
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, *recipe_data.values())
             
             # Save ingredients (unchanged)
@@ -332,6 +333,6 @@ if __name__ == "__main__":
     
     try:
         # Start crawling from Last crowled ID and crawled number_to_crawl records.
-        crawler.crawl_recipes(number_to_crawl=100)
+        crawler.crawl_recipes(number_to_crawl=1245)
     finally:
         crawler.close()

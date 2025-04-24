@@ -50,7 +50,8 @@ CREATE TABLE Recipes (
     instructions NVARCHAR(MAX),
     imageDownloaded BIT DEFAULT 0,
     imageFileType VARCHAR(10) NULL,
-    fetchDateTime DATETIME2
+    fetchDateTime DATETIME2,
+    sourceName NVARCHAR(100) NULL
 );
 
 CREATE TABLE RecipeIngredients (
