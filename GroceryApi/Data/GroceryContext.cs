@@ -47,6 +47,48 @@ namespace GroceryApi.Data
                 .HasOne(ui => ui.Ingredient)
                 .WithMany(i => i.UserIngredients)
                 .HasForeignKey(ui => ui.IngredientId);
+            
+            modelBuilder.Entity<Cuisine>().HasKey(c => c.CuisineId);
+            modelBuilder.Entity<DishType>().HasKey(d => d.DishTypeId);
+            
+            modelBuilder.Entity<RecipeCuisine>()
+                .HasKey(rc => new { rc.RecipeId, rc.CuisineId });
+                
+            modelBuilder.Entity<RecipeDishType>()
+                .HasKey(rd => new { rd.RecipeId, rd.DishTypeId });
+                
+            modelBuilder.Entity<RecipeCuisine>()
+                .HasOne(rc => rc.Recipe)
+                .WithMany(r => r.RecipeCuisines)
+                .HasForeignKey(rc => rc.RecipeId);
+                
+            modelBuilder.Entity<RecipeCuisine>()
+                .HasOne(rc => rc.Cuisine)
+                .WithMany(c => c.RecipeCuisines)
+                .HasForeignKey(rc => rc.CuisineId);
+                
+            modelBuilder.Entity<RecipeDishType>()
+                .HasOne(rd => rd.Recipe)
+                .WithMany(r => r.RecipeDishTypes)
+                .HasForeignKey(rd => rd.RecipeId);
+                
+            modelBuilder.Entity<RecipeDishType>()
+                .HasOne(rd => rd.DishType)
+                .WithMany(d => d.RecipeDishTypes)
+                .HasForeignKey(rd => rd.DishTypeId);
+                
+            // Configure RecipeIngredient updates
+            modelBuilder.Entity<RecipeIngredient>()
+                .Property(ri => ri.Original)
+                .HasMaxLength(255);
+                
+            modelBuilder.Entity<RecipeIngredient>()
+                .Property(ri => ri.Amount)
+                .HasColumnType("decimal(10,2)");
+                
+            modelBuilder.Entity<RecipeIngredient>()
+                .Property(ri => ri.Unit)
+                .HasMaxLength(50);
         }
     }
 }

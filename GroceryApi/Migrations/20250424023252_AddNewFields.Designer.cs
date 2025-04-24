@@ -3,6 +3,7 @@ using GroceryApi.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GroceryApi.Migrations
 {
     [DbContext(typeof(GroceryContext))]
-    partial class GroceryContextModelSnapshot : ModelSnapshot
+    [Migration("20250424023252_AddNewFields")]
+    partial class AddNewFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -24,11 +27,11 @@ namespace GroceryApi.Migrations
             modelBuilder.Entity("GroceryApi.Models.Cuisine", b =>
                 {
                     b.Property<string>("CuisineId")
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("CuisineId");
 
@@ -38,11 +41,11 @@ namespace GroceryApi.Migrations
             modelBuilder.Entity("GroceryApi.Models.DishType", b =>
                 {
                     b.Property<string>("DishTypeId")
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("DishTypeId");
 
@@ -79,7 +82,7 @@ namespace GroceryApi.Migrations
 
                     b.Property<string>("Image")
                         .IsRequired()
-                        .HasColumnType("nvarchar(255)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("IngredientCount")
                         .HasColumnType("int");
@@ -106,7 +109,7 @@ namespace GroceryApi.Migrations
 
                     b.Property<string>("SourceUrl")
                         .IsRequired()
-                        .HasColumnType("nvarchar(255)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("Vegan")
                         .HasColumnType("bit");
@@ -128,7 +131,7 @@ namespace GroceryApi.Migrations
                         .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("CuisineId")
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.HasKey("RecipeId", "CuisineId");
 
@@ -143,7 +146,7 @@ namespace GroceryApi.Migrations
                         .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("DishTypeId")
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.HasKey("RecipeId", "DishTypeId");
 
