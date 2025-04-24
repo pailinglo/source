@@ -244,46 +244,79 @@ class SpoonacularCrawler:
                 print(f"Failed to download image for recipe {recipe_id}")
         
         return True
+
+    def get_last_recipe_id(self):
+        """Get the highest recipe ID currently in the database"""
+        self.cursor.execute("SELECT MAX(recipeId) FROM RawRecipeData")
+        result = self.cursor.fetchone()
+        return result[0] if result[0] is not None else 0
+
     
-    def crawl_recipes(self, start_id=1, end_id=None, batch_size=100, force_retry_failed=False):
+    def crawl_recipes(self, start_id=None, number_to_crawl=1500, batch_size=100, force_retry_failed=False):
+        """
+        Crawl recipes with smart defaults:
+        - Defaults to 1500 recipes if number_to_crawl not specified
+        - Starts from last recipe ID + 1 if start_id not specified
+        
+        Args:
+            start_id (int): First recipe ID to crawl (None to auto-detect)
+            number_to_crawl (int): Total recipes to crawl (default 1500)
+            batch_size (int): Number of recipes per batch (default 100)
+            force_retry_failed (bool): Retry failed recipes (default False)
+        """
+        # Determine starting ID
+        if start_id is None:
+            start_id = self.get_last_recipe_id() + 1
+            print(f"Auto-starting from recipe ID {start_id}")
+
         current_id = start_id
+        processed_count = 0
+        last_successful_id = start_id - 1
         
         if force_retry_failed:
-            # If forcing retry, clear the processed IDs cache
             self.processed_ids = set()
+        else:
+            self.processed_ids = self._load_processed_ids()
         
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            while end_id is None or current_id <= end_id:
+            while processed_count < number_to_crawl:
                 batch = []
-                while len(batch) < batch_size and (end_id is None or current_id <= end_id):
+                # Prepare next batch
+                while len(batch) < batch_size and (processed_count + len(batch)) < number_to_crawl:
                     if current_id not in self.processed_ids:
                         batch.append(current_id)
                     current_id += 1
                 
                 if not batch:
-                    print(f"No more recipes to process in range {start_id}-{end_id or '∞'}")
+                    print(f"No more recipes found. Reached ID {last_successful_id}")
                     break
                 
-                print(f"Processing batch: {batch[0]} to {batch[-1]}")
+                print(f"Processing IDs {batch[0]} to {batch[-1]} ({processed_count}/{number_to_crawl} processed)")
                 
+                # Process batch
                 futures = {executor.submit(self.process_recipe, rid): rid for rid in batch}
                 for future in as_completed(futures):
                     rid = futures[future]
                     try:
                         success = future.result()
                         if success:
-                            self.processed_ids.add(rid)  # Mark as processed
+                            processed_count += 1
+                            last_successful_id = rid
+                            self.processed_ids.add(rid)
                     except Exception as e:
                         print(f"Error processing recipe {rid}: {str(e)}")
                 
                 time.sleep(1)  # Rate limiting
+        
+        print(f"Completed crawling {processed_count} recipes (target: {number_to_crawl})")
+        print(f"Last successful ID: {last_successful_id}")
     
     def close(self):
         self.cursor.close()
         self.conn.close()
 
 # Configuration
-API_KEY = "APIKEY"  # Replace with your actual API key
+API_KEY = "APIKEY"
 DB_CONNECTION_STRING = "DRIVER={ODBC Driver 17 for SQL Server};SERVER=(localdb)\\MSSQLLocalDB;DATABASE=RecipeDB;Trusted_Connection=yes;"
 IMAGE_STORAGE_PATH = "./recipe_images"  # Directory to store downloaded images
 
@@ -298,7 +331,7 @@ if __name__ == "__main__":
     )
     
     try:
-        # Start crawling from ID 1 to 100 (adjust as needed)
-        crawler.crawl_recipes(start_id=1, end_id=9)
+        # Start crawling from Last crowled ID and crawled number_to_crawl records.
+        crawler.crawl_recipes(number_to_crawl=100)
     finally:
         crawler.close()
