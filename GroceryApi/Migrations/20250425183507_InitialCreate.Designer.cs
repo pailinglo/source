@@ -3,6 +3,7 @@ using GroceryApi.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GroceryApi.Migrations
 {
     [DbContext(typeof(GroceryContext))]
-    partial class GroceryContextModelSnapshot : ModelSnapshot
+    [Migration("20250425183507_InitialCreate")]
+    partial class InitialCreate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -76,42 +79,28 @@ namespace GroceryApi.Migrations
                         .HasColumnType("varchar(20)");
 
                     b.Property<int>("AggregateLikes")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
+                        .HasColumnType("int");
 
                     b.Property<int>("CookingMinutes")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
+                        .HasColumnType("int");
 
                     b.Property<bool>("GlutenFree")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
+                        .HasColumnType("bit");
 
                     b.Property<string>("ImageUrl")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
                         .HasMaxLength(255)
-                        .HasColumnType("varchar(255)")
-                        .HasDefaultValue("");
+                        .HasColumnType("varchar(255)");
 
                     b.Property<int>("IngredientCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
+                        .HasColumnType("int");
 
                     b.Property<string>("Instructions")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("nvarchar(max)")
-                        .HasDefaultValue("");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("MajorIngredientCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
+                        .HasColumnType("int");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -119,41 +108,27 @@ namespace GroceryApi.Migrations
                         .HasColumnType("nvarchar(255)");
 
                     b.Property<int>("PreparationMinutes")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
+                        .HasColumnType("int");
 
                     b.Property<int>("ReadyInMinutes")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
+                        .HasColumnType("int");
 
                     b.Property<int>("Servings")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(1);
+                        .HasColumnType("int");
 
                     b.Property<string>("SourceUrl")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
                         .HasMaxLength(500)
-                        .HasColumnType("varchar(500)")
-                        .HasDefaultValue("");
+                        .HasColumnType("varchar(500)");
 
                     b.Property<bool>("Vegan")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
+                        .HasColumnType("bit");
 
                     b.Property<bool>("Vegetarian")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
+                        .HasColumnType("bit");
 
                     b.Property<bool>("VeryPopular")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
+                        .HasColumnType("bit");
 
                     b.HasKey("RecipeId");
 
@@ -205,28 +180,20 @@ namespace GroceryApi.Migrations
                         .HasColumnType("varchar(20)");
 
                     b.Property<decimal>("Amount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(10,2)")
-                        .HasDefaultValue(0m);
+                        .HasColumnType("decimal(10,2)");
 
                     b.Property<bool>("IsMajor")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
+                        .HasColumnType("bit");
 
                     b.Property<string>("OriginalText")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
                         .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)")
-                        .HasDefaultValue("");
+                        .HasColumnType("nvarchar(255)");
 
                     b.Property<string>("Unit")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)")
-                        .HasDefaultValue("");
+                        .HasColumnType("nvarchar(50)");
 
                     b.HasKey("RecipeId", "IngredientId");
 
@@ -272,10 +239,8 @@ namespace GroceryApi.Migrations
 
                     b.Property<string>("Email")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
                         .HasMaxLength(254)
-                        .HasColumnType("varchar(254)")
-                        .HasDefaultValue("");
+                        .HasColumnType("varchar(254)");
 
                     b.HasKey("UserId");
 
