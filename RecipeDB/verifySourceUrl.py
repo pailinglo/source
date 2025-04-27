@@ -5,6 +5,44 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import argparse
 
 class UrlValidator:
+    """
+    A class to validate and monitor the accessibility of recipe source URLs in a database.
+
+    This tool checks URLs from a Recipes database, tracks their status in RecipeUrlStatus table,
+    and implements intelligent retry logic with exponential backoff. It supports batch processing,
+    ID range filtering, and parallel requests for efficient validation. 
+
+    Usage:
+    1. Initialize with database connection string
+    2. Call validate_urls() with optional parameters
+    3. The system will process URLs in batches with configurable concurrency
+
+    Tips: if RetryCount >= 3, the URL is treated as inaccessible forever and will not be checked in the future.
+          if there are new recipes, the system will automatically add them to the tracking table.
+          if the recipe with NextCheckDate after the current time, it won't be checked in this run.
+
+    Typical usage examples:
+    ----------------------
+    # Basic validation (only new and inaccessible URLs(RetryCount < 3))
+    validator = UrlValidator(DB_CONNECTION_STRING)
+    validator.validate_urls()
+
+    # Validate specific ID range (only new and inaccessible URLs(RetryCount < 3) within the range)
+    validator.validate_urls(start_id=1000, end_id=2000)
+
+    # Validate all URLs (including accessible ones, but RetryCount < 3 and NextCheckDate <= current time)
+    validator.validate_urls(check_all=True)
+
+    # Command-line usage:
+    # python verifySourceUrl.py --start_id 1000 --end_id 2000 --check_all
+
+    Attributes:
+        db_connection_string (str): ODBC connection string for the database
+        timeout (int): HTTP request timeout in seconds (default: 10)
+        max_workers (int): Maximum concurrent requests (default: 10)
+        conn: Database connection object
+        cursor: Database cursor object
+    """
     def __init__(self, db_connection_string, timeout=10, max_workers=10):
         self.db_connection_string = db_connection_string
         self.timeout = timeout
@@ -132,28 +170,43 @@ class UrlValidator:
         self.conn.commit()
 
     def validate_urls(self, start_id=None, end_id=None, check_all=False):
-        """Main validation process with enhanced logging"""
+        """Main validation process that processes ALL records in batches"""
         mode = "all URLs" if check_all else "only inaccessible URLs"
         print(f"Starting URL validation for {mode} (IDs {start_id or 'start'} to {end_id or 'end'})...")
         self.initialize_url_tracking(start_id, end_id)
-        urls_to_check = self.get_urls_to_check(start_id=start_id, end_id=end_id, check_all=check_all)
         
-        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            futures = {
-                executor.submit(self.check_url, row.RecipeId, row.SourceUrl): row.RecipeId
-                for row in urls_to_check
-            }
+        total_processed = 0
+        while True:
+            urls_to_check = self.get_urls_to_check(
+                start_id=start_id, 
+                end_id=end_id, 
+                check_all=check_all
+            )
             
-            for future in as_completed(futures):
-                try:
-                    result = future.result()
-                    self.update_status(result)
-                    status = result['status_code'] or result['error'][:30]
-                    print(f"Checked {result['recipe_id']} - Status: {status}")
-                except Exception as e:
-                    print(f"Error processing {futures[future]}: {str(e)}")
+            if not urls_to_check:
+                break  # No more records to process
+                
+            batch_size = len(urls_to_check)
+            total_processed += batch_size
+            
+            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                futures = {
+                    executor.submit(self.check_url, row.RecipeId, row.SourceUrl): row.RecipeId
+                    for row in urls_to_check
+                }
+                
+                for future in as_completed(futures):
+                    try:
+                        result = future.result()
+                        self.update_status(result)
+                        status = result['status_code'] or result['error'][:30]
+                        print(f"Checked {result['recipe_id']} - Status: {status}")
+                    except Exception as e:
+                        print(f"Error processing {futures[future]}: {str(e)}")
 
-        print(f"Completed validation of {len(urls_to_check)} URLs.")
+            print(f"Processed batch of {batch_size} URLs (total: {total_processed})")
+
+        print(f"Completed validation of {total_processed} URLs in total.")
 
     def close(self):
         self.cursor.close()
