@@ -70,7 +70,7 @@ class UrlValidator:
                 'retry_count': 1
             }
 
-    def get_urls_to_check(self, batch_size=1000, start_id=None, end_id=None):
+    def get_urls_to_check(self, batch_size=1000, start_id=None, end_id=None, check_all=False):
         """Get URLs needing verification within ID range and RetryCount < 3"""
         query = """
             SELECT RecipeId, SourceUrl, RetryCount 
@@ -81,6 +81,9 @@ class UrlValidator:
             """
         
         params = []
+        if not check_all:
+            query += " AND IsAccessible = 0"
+            
         if start_id is not None:
             query += " AND RecipeId >= ?"
             params.append(start_id)
@@ -128,11 +131,12 @@ class UrlValidator:
         )
         self.conn.commit()
 
-    def validate_urls(self, start_id=None, end_id=None):
+    def validate_urls(self, start_id=None, end_id=None, check_all=False):
         """Main validation process with enhanced logging"""
-        print(f"Starting URL validation for IDs {start_id or 'start'} to {end_id or 'end'}...")
+        mode = "all URLs" if check_all else "only inaccessible URLs"
+        print(f"Starting URL validation for {mode} (IDs {start_id or 'start'} to {end_id or 'end'})...")
         self.initialize_url_tracking(start_id, end_id)
-        urls_to_check = self.get_urls_to_check(start_id=start_id, end_id=end_id)
+        urls_to_check = self.get_urls_to_check(start_id=start_id, end_id=end_id, check_all=check_all)
         
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             futures = {
@@ -159,16 +163,21 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description='Validate recipe URLs')
     parser.add_argument('--start_id', type=int, help='Starting Recipe ID to process')
     parser.add_argument('--end_id', type=int, help='Ending Recipe ID to process')
+    parser.add_argument('--check_all', action='store_true', 
+                       help='Check all URLs regardless of current accessibility status')
     return parser.parse_args()
 
 # Configuration
 DB_CONNECTION_STRING = "DRIVER={ODBC Driver 17 for SQL Server};SERVER=(localdb)\\MSSQLLocalDB;DATABASE=RecipeDB;Trusted_Connection=yes;"
 
 if __name__ == "__main__":
-    # args = parse_arguments()
+    args = parse_arguments()
     validator = UrlValidator(DB_CONNECTION_STRING)
     try:
-        # validator.validate_urls(start_id=args.start_id, end_id=args.end_id)
-        validator.validate_urls(start_id=1, end_id=20)
+        validator.validate_urls(
+            start_id=args.start_id, 
+            end_id=args.end_id, 
+            check_all=args.check_all
+        )
     finally:
         validator.close()
