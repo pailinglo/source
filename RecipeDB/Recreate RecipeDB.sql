@@ -93,4 +93,21 @@ CREATE TABLE RecipeDishTypes (
     FOREIGN KEY (dishTypeId) REFERENCES DishTypes(id)
 );
 
+CREATE TABLE RecipeUrlStatus (
+    RecipeId int NOT NULL PRIMARY KEY,
+    SourceUrl VARCHAR(500) NOT NULL,
+    IsAccessible BIT NULL,
+    LastChecked DATETIME2 NULL,
+    HttpStatus INT NULL,
+    ErrorMessage NVARCHAR(500) NULL,
+    RetryCount INT NOT NULL DEFAULT 0,
+    NextCheckDate DATETIME2 NULL,
+    CONSTRAINT FK_RecipeUrlStatus_Recipes FOREIGN KEY (RecipeId) 
+        REFERENCES Recipes(id) ON DELETE CASCADE
+);
+
+-- Create index for performance
+CREATE INDEX IX_RecipeUrlStatus_NextCheckDate ON RecipeUrlStatus(NextCheckDate)
+WHERE NextCheckDate IS NOT NULL;
+
 PRINT 'Database has been completely reset and all tables recreated';

@@ -1,7 +1,8 @@
 import requests
 import pyodbc
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import argparse
 
 class UrlValidator:
     def __init__(self, db_connection_string, timeout=10, max_workers=10):
@@ -11,15 +12,26 @@ class UrlValidator:
         self.conn = pyodbc.connect(db_connection_string)
         self.cursor = self.conn.cursor()
 
-    def initialize_url_tracking(self):
-        """Populate the tracking table with existing recipes"""
-        self.cursor.execute("""
+    def initialize_url_tracking(self, start_id=None, end_id=None):
+        """Populate the tracking table with existing recipes within ID range"""
+        query = """
             INSERT INTO RecipeUrlStatus (RecipeId, SourceUrl)
-            SELECT RecipeId, SourceUrl 
+            SELECT id, SourceUrl 
             FROM Recipes 
             WHERE SourceUrl IS NOT NULL
-            AND RecipeId NOT IN (SELECT RecipeId FROM RecipeUrlStatus)
-            """)
+            AND id NOT IN (SELECT RecipeId FROM RecipeUrlStatus)
+            """
+        
+        # Add ID range conditions if specified
+        params = []
+        if start_id is not None:
+            query += " AND id >= ?"
+            params.append(start_id)
+        if end_id is not None:
+            query += " AND id <= ?"
+            params.append(end_id)
+            
+        self.cursor.execute(query, params)
         self.conn.commit()
 
     def check_url(self, recipe_id, url):
@@ -58,18 +70,31 @@ class UrlValidator:
                 'retry_count': 1
             }
 
-    def get_urls_to_check(self, batch_size=1000):
-        """Get URLs needing verification with smart retry logic"""
-        self.cursor.execute("""
+    def get_urls_to_check(self, batch_size=1000, start_id=None, end_id=None):
+        """Get URLs needing verification within ID range and RetryCount < 3"""
+        query = """
             SELECT RecipeId, SourceUrl, RetryCount 
             FROM RecipeUrlStatus 
             WHERE 
-                NextCheckDate IS NULL OR 
-                NextCheckDate <= GETDATE()
+                (NextCheckDate IS NULL OR NextCheckDate <= GETDATE())
+                AND RetryCount < 3
+            """
+        
+        params = []
+        if start_id is not None:
+            query += " AND RecipeId >= ?"
+            params.append(start_id)
+        if end_id is not None:
+            query += " AND RecipeId <= ?"
+            params.append(end_id)
+            
+        query += """
             ORDER BY 
                 CASE WHEN RetryCount = 0 THEN 0 ELSE 1 END,
                 LastChecked ASC
-            """)
+            """
+            
+        self.cursor.execute(query, params)
         return self.cursor.fetchmany(batch_size)
 
     def update_status(self, result):
@@ -80,7 +105,7 @@ class UrlValidator:
         if not result['is_accessible'] and retry_count > 0:
             # Exponential backoff for retries (1h, 4h, 12h, 24h, 3d, 1w)
             backoff_hours = min(168, [1, 4, 12, 24, 72, 168][min(retry_count-1, 5)])
-            next_check = datetime.utcnow() + timedelta(hours=backoff_hours)
+            next_check = datetime.now(timezone.utc) + timedelta(hours=backoff_hours)
 
         self.cursor.execute("""
             UPDATE RecipeUrlStatus 
@@ -94,7 +119,7 @@ class UrlValidator:
             WHERE RecipeId = ?
             """,
             result['is_accessible'],
-            datetime.utcnow(),
+            datetime.now(timezone.utc),
             result['status_code'],
             result['error'],
             result['retry_count'],
@@ -103,11 +128,11 @@ class UrlValidator:
         )
         self.conn.commit()
 
-    def validate_urls(self):
+    def validate_urls(self, start_id=None, end_id=None):
         """Main validation process with enhanced logging"""
-        print("Starting URL validation...")
-        self.initialize_url_tracking()
-        urls_to_check = self.get_urls_to_check()
+        print(f"Starting URL validation for IDs {start_id or 'start'} to {end_id or 'end'}...")
+        self.initialize_url_tracking(start_id, end_id)
+        urls_to_check = self.get_urls_to_check(start_id=start_id, end_id=end_id)
         
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             futures = {
@@ -130,12 +155,20 @@ class UrlValidator:
         self.cursor.close()
         self.conn.close()
 
+def parse_arguments():
+    parser = argparse.ArgumentParser(description='Validate recipe URLs')
+    parser.add_argument('--start_id', type=int, help='Starting Recipe ID to process')
+    parser.add_argument('--end_id', type=int, help='Ending Recipe ID to process')
+    return parser.parse_args()
+
 # Configuration
-DB_CONNECTION_STRING = "DRIVER={ODBC Driver 17 for SQL Server};SERVER=your_server;DATABASE=RecipeDB;UID=username;PWD=password"
+DB_CONNECTION_STRING = "DRIVER={ODBC Driver 17 for SQL Server};SERVER=(localdb)\\MSSQLLocalDB;DATABASE=RecipeDB;Trusted_Connection=yes;"
 
 if __name__ == "__main__":
+    # args = parse_arguments()
     validator = UrlValidator(DB_CONNECTION_STRING)
     try:
-        validator.validate_urls()
+        # validator.validate_urls(start_id=args.start_id, end_id=args.end_id)
+        validator.validate_urls(start_id=1, end_id=20)
     finally:
         validator.close()
