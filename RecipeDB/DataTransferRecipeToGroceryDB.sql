@@ -52,10 +52,13 @@ END
 
 GO
 
---Prefer the most frequent nameClean (if available)
---Fall back to the most frequent name
---If frequencies are equal, pick the shortest string
-
+-- This procedure transfers ingredients from RecipeDB to GroceryDB.
+-- In RecipeDB, the same ingredient id might have different names in NameClean or name field. 
+-- This procedure is to decide which name to use:
+-- 1. Prefer the most frequent nameClean (if available)
+-- 2. Fall back to the most frequent name
+-- 3. If frequencies are equal, pick the shortest string
+-- If ingredientId is -1, disregard it.
 ALTER PROCEDURE [dbo].[TransferIngredients]
 AS
 BEGIN
@@ -114,6 +117,7 @@ BEGIN
         Name
     FROM RankedNames
     WHERE NameRank = 1
+    AND IngredientId <> '-1' -- Exclude ingredientId = -1
     AND NOT EXISTS (
         SELECT 1 FROM GroceryDB.dbo.Ingredients gi 
         WHERE gi.IngredientId = RankedNames.IngredientId
@@ -165,9 +169,36 @@ END
 
 GO
 
+-- The same combination of (RecipeID, IngredientId) might exist in the recipeIngredients for the same recipe. 
+-- The nameClean field might be the same or not, no matter what, we will choose only the first record for the same (RecipeId, IngredientID).
+
 CREATE PROCEDURE [dbo].[TransferRecipeIngredients]
 AS
 BEGIN
+    -- Use ROW_NUMBER() to deduplicate (RecipeId, IngredientId, NameClean)
+    WITH DeduplicatedIngredients AS (
+        SELECT 
+            CAST(ri.recipeId AS VARCHAR(20)) AS RecipeId,
+            CAST(ri.ingredientId AS VARCHAR(20)) AS IngredientId,
+            ISNULL(ri.original, '') AS OriginalText,
+            ISNULL(ri.amount, 0) AS Amount,
+            ISNULL(ri.unit, '') AS Unit,
+            ROW_NUMBER() OVER (
+                PARTITION BY ri.recipeId, ri.ingredientId, ri.nameClean
+                ORDER BY ri.id  -- or another deterministic field (e.g., amount DESC)
+            ) AS RowNum
+        FROM RecipeDB.dbo.RecipeIngredients ri
+        INNER JOIN RecipeDB.dbo.Recipes r ON ri.recipeId = r.id
+        LEFT JOIN RecipeDB.dbo.RecipeUrlStatus rus ON r.id = rus.RecipeId
+        WHERE r.imageDownloaded = 1
+        AND (r.instructions IS NOT NULL OR rus.IsAccessible = 1)
+		AND IngredientId <> '-1'
+        AND EXISTS (
+            SELECT 1 FROM GroceryDB.dbo.Recipes gr 
+            WHERE gr.RecipeId = CAST(r.id AS VARCHAR(20))
+        )
+    )
+    
     INSERT INTO GroceryDB.dbo.RecipeIngredients (
         RecipeId, 
         IngredientId, 
@@ -177,25 +208,19 @@ BEGIN
         Unit
     )
     SELECT 
-        CAST(ri.recipeId AS varchar(20)) AS RecipeId,
-        CAST(ri.ingredientId AS varchar(20)) AS IngredientId,
-        1 AS IsMajor, -- Assuming all ingredients are major since RecipeDB doesn't have this flag
-        ISNULL(ri.original, '') AS OriginalText,
-        ISNULL(ri.amount, 0) AS Amount,
-        ISNULL(ri.unit, '') AS Unit
-    FROM RecipeDB.dbo.RecipeIngredients ri
-    INNER JOIN RecipeDB.dbo.Recipes r ON ri.recipeId = r.id
-    LEFT JOIN RecipeDB.dbo.RecipeUrlStatus rus ON r.id = rus.RecipeId
-    WHERE r.imageDownloaded = 1
-    AND (r.instructions IS NOT NULL OR rus.IsAccessible = 1)
-	-- The recipe is in the Recipes table but not in RecipeIngredients table.
-    AND EXISTS (
-        SELECT 1 FROM GroceryDB.dbo.Recipes gr 
-        WHERE gr.RecipeId = CAST(r.id AS varchar(20)))
+        RecipeId,
+        IngredientId,
+        1 AS IsMajor,  -- Assuming all are major
+        OriginalText,
+        Amount,
+        Unit
+    FROM DeduplicatedIngredients
+    WHERE RowNum = 1  -- Only keep the first record per (RecipeId, IngredientId, NameClean)
     AND NOT EXISTS (
         SELECT 1 FROM GroceryDB.dbo.RecipeIngredients gri 
-        WHERE gri.RecipeId = CAST(ri.recipeId AS varchar(20))
-        AND gri.IngredientId = CAST(ri.ingredientId AS varchar(20)));
+        WHERE gri.RecipeId = DeduplicatedIngredients.RecipeId
+        AND gri.IngredientId = DeduplicatedIngredients.IngredientId
+     );
 END
 
 GO
