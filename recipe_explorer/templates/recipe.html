@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% if recipe %}{{ recipe.Name }}{% else %}Recipe Not Found{% endif %}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .recipe-image { max-width: 300px; max-height: 300px; }
+        .ingredients { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    {% if recipe %}
+        <h1>{{ recipe.Name }}</h1>
+        
+        {% if recipe.ImageUrl %}
+            <img src="{{ recipe.ImageUrl }}" alt="{{ recipe.Name }}" class="recipe-image">
+        {% endif %}
+        
+        <div class="details">
+            <p><strong>Ready in:</strong> {{ recipe.ReadyInMinutes }} minutes</p>
+            <p><strong>Servings:</strong> {{ recipe.Servings }}</p>
+            {% if cuisines %}
+            <p><strong>Cuisine:</strong> {{ cuisines|join(', ') }}</p>
+            {% endif %}
+        </div>
+        
+        {% if recipe.Instructions %}
+            <div class="instructions">
+                <h3>Instructions</h3>
+                <p>{{ recipe.Instructions }}</p>
+            </div>
+        {% endif %}
+        
+        {% if ingredients %}
+        <div class="ingredients">
+            <h3>Ingredients</h3>
+            <ul>
+                {% for ingredient in ingredients %}
+                    <li>{{ ingredient }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        
+        {% if recipe.SourceUrl %}
+            <p><a href="{{ recipe.SourceUrl }}" target="_blank">View Original Recipe</a></p>
+        {% endif %}
+    {% else %}
+        <h1>Recipe Not Found</h1>
+        <p>The requested recipe could not be found.</p>
+    {% endif %}
+    
+    <p><a href="/">Back to overview</a></p>
+</body>
+</html>
