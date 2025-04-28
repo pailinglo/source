@@ -20,14 +20,17 @@ class ApiService {
 
     final groceries = await _dbHelper.getGroceries(userId);
     final unsynced = groceries.where((g) => g['synced'] == 0).toList();
-    if (unsynced.isEmpty) return;
+    
+    // this does not handle deleted items.
+    //if (unsynced.isEmpty) return;
 
+    // instead of sending only unsynced items, we send all items to the server.
     final response = await http.post(
       Uri.parse('$_baseUrl/api/users/$userId/ingredients/batch'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'items':
-            unsynced
+            groceries
                 .map(
                   (g) => {'name': g['mapped_name'], 'originalName': g['name']},
                 )

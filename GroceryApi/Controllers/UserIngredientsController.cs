@@ -23,8 +23,9 @@ namespace GroceryApi.Controllers
             _logger = logger;
         }
 
+        // TODO: Move code to a service class for better separation of concerns
         [HttpPost("batch")]
-        public async Task<IActionResult> AddIngredients(string userId, [FromBody] BatchIngredientsDto dto)
+        public async Task<IActionResult> SyncIngredients(string userId, [FromBody] BatchIngredientsDto dto)
         {
             if (_context == null)
             {
@@ -34,6 +35,12 @@ namespace GroceryApi.Controllers
             // Log the content of the FromBody parameter
             _logger.LogDebug("Received BatchIngredientsDto: {BatchIngredients}", System.Text.Json.JsonSerializer.Serialize(dto));
 
+            // Get existing UserIngredients from the database
+            var existingUserIngredients = await _context.UserIngredients
+                .Where(ui => ui.UserId == userId)
+                .Include(ui => ui.Ingredient) // Eagerly load to include the Ingredient navigation property
+                .ToListAsync();
+
             // Get unique items by name (case-insensitive)
             // This will remove duplicates based on the name property and avoid adding record errors.
             var uniqueItems = dto.Items
@@ -41,15 +48,26 @@ namespace GroceryApi.Controllers
                 .Select(group => group.First())
                 .ToList();
 
-            // Get existing ingredients from the database
+            // Get existing ingredients from the database that match the unique items by name
             var ingredients = await _context.Ingredients
                 .Where(i => uniqueItems.Select(x => x.Name.ToLower()).Contains(i.Name.ToLower()))
                 .ToListAsync();
 
-            // Get existing UserIngredients from the database
-            var existingUserIngredients = await _context.UserIngredients
-                .Where(ui => ui.UserId == userId)
-                .ToListAsync();
+            // Determine items to remove
+            // Remove items from the existingUserIngredients that are not in the uniqueItemNames list
+            var uniqueItemNames = uniqueItems
+                .Select(item => item.Name.ToLower())
+                .ToList();
+            
+            var itemsToRemove = existingUserIngredients
+                .Where(ui => ui.Ingredient != null && !uniqueItemNames.Contains(ui.Ingredient.Name.ToLower()))
+                .ToList();
+
+            // Remove items
+            if (itemsToRemove.Any())
+            {
+                _context.UserIngredients.RemoveRange(itemsToRemove);
+            }
 
             var newUserIngredients = new List<UserIngredient>();
             foreach (var item in uniqueItems)
@@ -57,6 +75,9 @@ namespace GroceryApi.Controllers
                 var ingredient = ingredients.FirstOrDefault(i => i.Name.ToLower() == item.Name.ToLower());
                 if (ingredient == null)
                 {
+                    continue; // Skip if ingredient is not found in the database
+                    
+                    // TODO: I should map the unseen ingredient to our existing ingredient list
                     ingredient = new Ingredient
                     {
                         IngredientId = $"ing-{item.Name.ToLower().Replace(' ', '-')}",
