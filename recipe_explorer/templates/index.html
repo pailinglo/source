@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Recipe Explorer</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .stats { display: flex; flex-wrap: wrap; gap: 20px; }
+        .stat-box { border: 1px solid #ddd; padding: 15px; border-radius: 5px; min-width: 200px; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .search { margin: 20px 0; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Recipe Explorer</h1>
+    
+    <div class="search">
+        <form action="/search" method="get">
+            <input type="text" name="q" placeholder="Search...">
+            <select name="type">
+                <option value="id">By Recipe ID</option>
+                <option value="ingredient">By Ingredient</option>
+            </select>
+            <button type="submit">Search</button>
+        </form>
+    </div>
+
+    {% if error %}
+        <p class="error">{{ error }}</p>
+    {% endif %}
+
+    {% if search_results %}
+        <h2>Search Results for "{{ search_term }}"</h2>
+        <ul>
+            {% for recipe in search_results %}
+                <li><a href="/search?type=id&q={{ recipe[0] }}">{{ recipe[1] }} (ID: {{ recipe[0] }})</a></li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <div class="stats">
+            <div class="stat-box">
+                <h3>Total Recipes</h3>
+                <p>{{ total_recipes }}</p>
+            </div>
+            
+            <div class="stat-box">
+                <h3>Total Ingredients</h3>
+                <p>{{ total_ingredients }}</p>
+            </div>
+        </div>
+
+        {% if recipes_by_cuisine %}
+        <h2>Recipes by Cuisine</h2>
+        <!-- In the cuisine table section -->
+        <table>
+            <tr>
+                <th>Cuisine</th>
+                <th>Count</th>
+            </tr>
+            {% for cuisine in recipes_by_cuisine %}
+            <tr>
+                <td><a href="/search?type=cuisine&q={{ cuisine[0] }}">{{ cuisine[1] }}</a></td>
+                <td>{{ cuisine[2] }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% endif %}
+
+        {% if recipes_by_dish_type %}
+        <h2>Recipes by Dish Type</h2>
+        <table>
+            <tr>
+                <th>Dish Type</th>
+                <th>Count</th>
+            </tr>
+            {% for dish_type in recipes_by_dish_type %}
+            <tr>
+                <td>{{ dish_type[0] }}</td>
+                <td>{{ dish_type[1] }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% endif %}
+    {% endif %}
+</body>
+</html>
