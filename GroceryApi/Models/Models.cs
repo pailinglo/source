@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace GroceryApi.Models
 {
@@ -19,6 +20,7 @@ namespace GroceryApi.Models
         public string Name { get; set; }
         public List<RecipeIngredient> RecipeIngredients { get; set; }
         public List<UserIngredient> UserIngredients { get; set; }
+        public IngredientName IngredientName { get; set; }
     }
 
     public class UserIngredient
@@ -138,5 +140,17 @@ namespace GroceryApi.Models
         [MaxLength(20)]
         public string IngredientId { get; set; }
         public string Name { get; set; }
+    }
+
+    public class IngredientName
+    {
+        [Key]
+        [ForeignKey("Ingredient")]
+        [MaxLength(20)]
+        public string IngredientId { get; set; }
+        public string OriginalName { get; set; }
+        public string LastNoun { get; set; }
+        public string Processed { get; set; }
+        public Ingredient Ingredient { get; set; }
     }
 }

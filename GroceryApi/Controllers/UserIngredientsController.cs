@@ -49,9 +49,19 @@ namespace GroceryApi.Controllers
                 .ToList();
 
             // Get existing ingredients from the database that match the unique items by name
-            var ingredients = await _context.Ingredients
-                .Where(i => uniqueItems.Select(x => x.Name.ToLower()).Contains(i.Name.ToLower()))
-                .ToListAsync();
+            // var ingredients = await _context.Ingredients
+            //     .Where(i => uniqueItems.Select(x => x.Name.ToLower()).Contains(i.Name.ToLower()))
+            //     .ToListAsync();
+
+            // Use a join to get the ingredients that match the unique items by name or processed name
+            var ingredients = await (from i in _context.Ingredients
+                         join iname in _context.IngredientName
+                         on i.IngredientId equals iname.IngredientId
+                         where uniqueItems.Select(x => x.Name.ToLower()).Contains(i.Name.ToLower()) || 
+                               uniqueItems.Select(x => x.Name.ToLower()).Contains(iname.Processed.ToLower())
+                         select i)
+                         .Include(i => i.IngredientName) // Eagerly load to include the UserIngredients navigation property
+                         .ToListAsync();
 
             // Determine items to remove
             // Remove items from the existingUserIngredients that are not in the uniqueItemNames list
@@ -72,7 +82,7 @@ namespace GroceryApi.Controllers
             var newUserIngredients = new List<UserIngredient>();
             foreach (var item in uniqueItems)
             {
-                var ingredient = ingredients.FirstOrDefault(i => i.Name.ToLower() == item.Name.ToLower());
+                var ingredient = ingredients.FirstOrDefault(i => i.Name.ToLower() == item.Name.ToLower() || i.IngredientName.Processed.ToLower() == item.Name.ToLower());
                 if (ingredient == null)
                 {
                     continue; // Skip if ingredient is not found in the database
