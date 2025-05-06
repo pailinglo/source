@@ -12,7 +12,6 @@ DB_CONNECTION_STRING = "DRIVER={ODBC Driver 17 for SQL Server};SERVER=(localdb)\
 
 # Prediction mapping (model outputs to your integer values)
 QUALITY_MAPPING = {
-    "2": "better",
     "1": "good",
     "0": "poor",
     "-1": "bad quality",
@@ -37,10 +36,15 @@ def process_records():
         """)
         records = cursor.fetchall()
         
-        print(f"Found {len(records)} records to process")
+        total_records = len(records)
+        print(f"Found {total_records} records to process")
         
-        for recipe_id, file_type in records:
+        for i, (recipe_id, file_type) in enumerate(records, 1):
             try:
+                # Print progress every 100 records
+                if i % 100 == 0 or i == total_records:
+                    print(f"Processing record {i} of {total_records} ({i/total_records:.1%})")
+                
                 # Construct image path
                 img_name = f"{recipe_id}.{file_type}"
                 img_path = Path(IMAGES_FOLDER) / img_name
@@ -67,7 +71,9 @@ def process_records():
                 """, (pred_class, recipe_id))
                 conn.commit()
                 
-                print(f"Updated {img_name}: {pred_class} -> {quality}")
+                # Only print success for every 100 records to reduce clutter
+                if i % 100 == 0 or i == total_records:
+                    print(f"Updated {img_name}: {pred_class} -> {quality}")
                 
             except Exception as e:
                 print(f"Error processing {recipe_id}: {str(e)}")
