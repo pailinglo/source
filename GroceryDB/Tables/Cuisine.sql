@@ -1,0 +1,21 @@
+USE [GroceryDB]
+GO
+
+/****** Object:  Table [dbo].[Cuisine]    Script Date: 5/6/2025 10:37:25 AM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[Cuisine](
+	[CuisineId] [varchar](20) NOT NULL,
+	[Name] [nvarchar](100) NOT NULL,
+ CONSTRAINT [PK_Cuisine] PRIMARY KEY CLUSTERED 
+(
+	[CuisineId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+
