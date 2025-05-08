@@ -1,7 +1,7 @@
 USE [GroceryDB]
 GO
 
-/****** Object:  Table [dbo].[IngredientSynonyms]    Script Date: 5/6/2025 6:10:16 PM ******/
+/****** Object:  Table [dbo].[IngredientSynonyms]    Script Date: 5/7/2025 11:28:51 PM ******/
 SET ANSI_NULLS ON
 GO
 
@@ -21,4 +21,8 @@ GO
 ALTER TABLE [dbo].[IngredientSynonyms] ADD  DEFAULT ((0)) FOR [IsMisspelling]
 GO
 
+CREATE NONCLUSTERED INDEX [IX_IngredientSynonyms_Name] ON [dbo].[IngredientSynonyms] ([Name])
+GO
 
+CREATE NONCLUSTERED INDEX [IX_IngredientSynonyms_Synonym] ON [dbo].[IngredientSynonyms] ([Synonym])
+GO
