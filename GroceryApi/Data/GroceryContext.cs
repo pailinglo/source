@@ -14,6 +14,7 @@ namespace GroceryApi.Data
         public DbSet<UserIngredient> UserIngredients { get; set; }
         public DbSet<RecipeRecommendation> RecipeRecommendations { get; set; }
         public DbSet<IngredientName> IngredientName { get; set; }
+        public DbSet<IngredientSynonym> IngredientSynonym { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -184,6 +185,19 @@ namespace GroceryApi.Data
                     .WithOne(i => i.IngredientName)
                     .HasForeignKey<IngredientName>(e => e.IngredientId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<IngredientSynonym>(entity=>
+            {
+                entity.HasNoKey();
+                entity.ToTable("IngredientSynonyms");
+                entity.Property(e => e.Name).HasColumnType("nvarchar(100)");
+                entity.Property(e => e.Synonym).HasColumnType("nvarchar(100)");
+                entity.Property(e => e.LLMReportOrder).HasColumnType("int");
+                entity.Property(e => e.IsMisspelling).HasColumnType("bit");
+                entity.Property(e => e.Region).HasColumnType("nvarchar(100)");
+                entity.Property(e => e.LLMText).HasColumnType("nvarchar(100)");
+
             });
         }
     }

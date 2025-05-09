@@ -28,74 +28,55 @@ namespace GroceryApi.Services
 
             _logger.LogDebug("Received BatchIngredientsDto: {BatchIngredients}", System.Text.Json.JsonSerializer.Serialize(dto));
 
-            // Get existing UserIngredients
-            var existingUserIngredients = await _context.UserIngredients
-                .Where(ui => ui.UserId == userId)
-                .Include(ui => ui.Ingredient)
-                .ToListAsync();
-
+            
             // Get unique items by name (case-insensitive)
             var uniqueItems = dto.Items
                 .GroupBy(item => item.Name.ToLower())
                 .Select(group => group.First())
                 .ToList();
 
-            // Get existing ingredients from the database
-            var ingredients = await (from i in _context.Ingredients
-                                      join iname in _context.IngredientName
-                                      on i.IngredientId equals iname.IngredientId
-                                      where uniqueItems.Select(x => x.Name.ToLower()).Contains(i.Name.ToLower()) ||
-                                            uniqueItems.Select(x => x.Name.ToLower()).Contains(iname.Processed.ToLower())
-                                      select i)
-                                      .Include(i => i.IngredientName)
-                                      .ToListAsync();
-
-            // Determine items to remove
-            var uniqueItemNames = uniqueItems.Select(item => item.Name.ToLower()).ToList();
-            var itemsToRemove = existingUserIngredients
-                .Where(ui => ui.Ingredient != null && !uniqueItemNames.Contains(ui.Ingredient.Name.ToLower()))
-                .ToList();
-
-            if (itemsToRemove.Any())
-            {
-                _context.UserIngredients.RemoveRange(itemsToRemove);
-            }
+            // Fuzzy matching to ingredients from the database
+            var ingredients = await (
+                from i in _context.Ingredients
+                join n in _context.IngredientName on i.IngredientId equals n.IngredientId
+                where uniqueItems.Select(x => x.Name.ToLower()).Contains(i.Name.ToLower()) || 
+                    uniqueItems.Select(x => x.Name.ToLower()).Contains(n.Curated.ToLower())
+                select new
+                {
+                    i.IngredientId,
+                    i.Name
+                }
+            )
+            .Union(
+                from i in _context.Ingredients
+                join n in _context.IngredientName on i.IngredientId equals n.IngredientId
+                join syn in _context.IngredientSynonym on n.Curated equals syn.Name 
+                where 
+                (syn.LLMReportOrder <= 3 || syn.IsMisspelling) &&
+                uniqueItems.Select(x => x.Name.ToLower()).Contains(syn.Synonym.ToLower())
+                select new
+                {
+                    i.IngredientId,
+                    i.Name
+                }
+            )
+            .ToListAsync();
 
             var newUserIngredients = new List<UserIngredient>();
-            foreach (var item in uniqueItems)
-            {
-                var ingredient = ingredients.FirstOrDefault(i => i.Name.ToLower() == item.Name.ToLower() || i.IngredientName.Processed.ToLower() == item.Name.ToLower());
-                if (ingredient == null)
+            
+            foreach(var ingredient in ingredients){
+                newUserIngredients.Add(new UserIngredient
                 {
-                    continue; // Skip if ingredient is not found in the database
-                    
-                    // TODO: I should map the unseen ingredient to our existing ingredient list
-                    ingredient = new Ingredient
-                    {
-                        IngredientId = $"ing-{item.Name.ToLower().Replace(' ', '-')}",
-                        Name = item.Name
-                    };
-
-                    // Check if the ingredient is already being tracked
-                    // since ingredients are existing list in the database before adding the ingredient
-                    
-                    if (!_context.ChangeTracker.Entries<Ingredient>().Any(e => e.Entity.Name.ToLower() == ingredient.Name.ToLower()))
-                    {
-                        _context.Ingredients.Add(ingredient);
-                        _logger.LogDebug($"Added new ingredient: {ingredient.Name}");
-                    }
-                }
-
-                if (!existingUserIngredients.Any(ui => ui.IngredientId == ingredient.IngredientId))
-                {
-                    newUserIngredients.Add(new UserIngredient
-                    {
-                        UserId = userId,
-                        IngredientId = ingredient.IngredientId
-                    });
-                    _logger.LogDebug($"Added UserIngredient for user {userId}: {ingredient.Name}");
-                }
+                    UserId = userId,
+                    IngredientId = ingredient.IngredientId
+                });
+                _logger.LogDebug($"Added UserIngredient for user {userId}: {ingredient.Name}");
             }
+
+            using var transaction = await _context.Database.BeginTransactionAsync(); // Start a transaction
+
+            // Delete existing user ingredients for the user
+            await _context.Database.ExecuteSqlRawAsync("DELETE FROM UserIngredients WHERE UserId = {0}", userId);
 
             if (newUserIngredients.Any())
             {
@@ -103,6 +84,8 @@ namespace GroceryApi.Services
             }
 
             await _context.SaveChangesAsync();
+            await transaction.CommitAsync(); // Commit the transaction
+    
         }
     }
 }
