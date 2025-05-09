@@ -151,6 +151,17 @@ namespace GroceryApi.Models
         public string OriginalName { get; set; }
         public string LastNoun { get; set; }
         public string Processed { get; set; }
+        public string Curated { get; set; }
         public Ingredient Ingredient { get; set; }
+    }
+
+    public class IngredientSynonym
+    {
+        public string Name { get; set; }
+        public string Synonym { get; set; }
+        public int LLMReportOrder { get; set; }
+        public bool IsMisspelling { get; set; }
+        public string Region { get; set; }
+        public string LLMText { get; set; }
     }
 }
