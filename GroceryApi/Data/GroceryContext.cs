@@ -30,6 +30,8 @@ namespace GroceryApi.Data
                 .Property(r => r.ImageUrl).HasColumnType("varchar(255)");
             modelBuilder.Entity<Recipe>()
                 .Property(r => r.SourceUrl).HasColumnType("varchar(500)");
+            modelBuilder.Entity<Recipe>()
+                .Property(r => r.SourceName).HasColumnType("nvarchar(100)");
             modelBuilder.Entity<RecipeIngredient>()
                 .HasKey(ri => new { ri.RecipeId, ri.IngredientId });
             modelBuilder.Entity<RecipeIngredient>()
@@ -135,6 +137,9 @@ namespace GroceryApi.Data
             modelBuilder.Entity<Recipe>()
                 .Property(r => r.SourceUrl)
                 .HasDefaultValue(string.Empty);
+            modelBuilder.Entity<Recipe>()
+                .Property(r => r.SourceName)
+                .HasDefaultValue(string.Empty);    
             modelBuilder.Entity<Recipe>()
                 .Property(r => r.ImageUrl)
                 .HasDefaultValue(string.Empty);

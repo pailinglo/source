@@ -1,7 +1,7 @@
 USE [GroceryDB]
 GO
 
-/****** Object:  Table [dbo].[Recipes]    Script Date: 5/6/2025 10:40:50 AM ******/
+/****** Object:  Table [dbo].[Recipes]    Script Date: 5/10/2025 10:11:39 PM ******/
 SET ANSI_NULLS ON
 GO
 
@@ -25,6 +25,7 @@ CREATE TABLE [dbo].[Recipes](
 	[GlutenFree] [bit] NOT NULL,
 	[VeryPopular] [bit] NOT NULL,
 	[AggregateLikes] [int] NOT NULL,
+	[SourceName] [nvarchar](100) NOT NULL,
  CONSTRAINT [PK_Recipes] PRIMARY KEY CLUSTERED 
 (
 	[RecipeId] ASC
@@ -72,6 +73,9 @@ ALTER TABLE [dbo].[Recipes] ADD  DEFAULT (CONVERT([bit],(0))) FOR [VeryPopular]
 GO
 
 ALTER TABLE [dbo].[Recipes] ADD  DEFAULT ((0)) FOR [AggregateLikes]
+GO
+
+ALTER TABLE [dbo].[Recipes] ADD  DEFAULT ('') FOR [SourceName]
 GO
 
 

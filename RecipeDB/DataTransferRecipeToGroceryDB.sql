@@ -2,7 +2,7 @@ use RecipeDB
 
 GO
 
-ALTER PROCEDURE [dbo].[TransferEligibleRecipes]
+CREATE PROCEDURE [dbo].[TransferEligibleRecipes]
 AS
 BEGIN
     INSERT INTO GroceryDB.dbo.Recipes (
@@ -14,7 +14,8 @@ BEGIN
         ImageUrl, 
         ReadyInMinutes, 
         Servings, 
-        SourceUrl, 
+        SourceUrl,
+		SourceName,
         Vegetarian, 
         Vegan, 
         PreparationMinutes, 
@@ -34,6 +35,7 @@ BEGIN
         r.readyInMinutes AS ReadyInMinutes,
         r.servings AS Servings,
         CASE WHEN rus.IsAccessible = 1 THEN r.sourceUrl ELSE '' END AS SourceUrl,
+		r.sourceName,
         ISNULL(r.vegetarian, 0) AS Vegetarian,
         ISNULL(r.vegan, 0) AS Vegan,
         ISNULL(r.preparationMinutes, 0) AS PreparationMinutes,

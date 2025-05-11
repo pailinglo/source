@@ -54,6 +54,7 @@ namespace GroceryApi.Models
         public bool GlutenFree { get; set; }
         public bool VeryPopular { get; set; }
         public int AggregateLikes { get; set; }
+        public string SourceName { get; set; }
         public List<RecipeCuisine> RecipeCuisines { get; set; }
         public List<RecipeDishType> RecipeDishTypes { get; set; }
         public List<RecipeIngredient> RecipeIngredients { get; set; }
