@@ -47,6 +47,7 @@ BEGIN
     LEFT JOIN RecipeDB.dbo.RecipeUrlStatus rus ON r.id = rus.RecipeId
     WHERE r.imageDownloaded = 1 AND r.imageQuality is not null and r.imageQuality >= 0
     AND (r.instructions IS NOT NULL OR rus.IsAccessible = 1)
+    AND r.sourceName <> 'BBC Good Food' -- The recipe sourceUrl is not working
     AND NOT EXISTS (
         SELECT 1 FROM GroceryDB.dbo.Recipes gr 
         WHERE gr.RecipeId = CAST(r.id AS varchar(20)))
