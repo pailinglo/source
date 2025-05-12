@@ -86,7 +86,7 @@ class DatabaseHelper {
           ''');
           await db.execute('''
             INSERT INTO groceries_new (id, user_id, name, mapped_name, ingredient_id)
-            SELECT id, '123', i.name, i.name, ingredient_id
+            SELECT g.id, '123', i.name, i.name, ingredient_id
             FROM groceries g
             JOIN ingredients i ON g.ingredient_id = i.id
           ''');

@@ -48,8 +48,19 @@ class InventoryModel extends ChangeNotifier {
               .map(
                 (r) => {
                   'name': r['name'],
-                  'instructions':
-                      r['instructions'] ?? 'No instructions available',
+                  'instructions': List<String>.from(
+                    r['instructions'] ?? [],
+                  ), // Ensure instructions is a List<String>
+                  'cookTime':
+                      r['CookingMinutes'] ??
+                      0, // Use 0 as a default value if null
+                  'imageUrl': r['ImageUrl'] ?? '',
+                  'vegetarian': r['Vegetarian'] ?? false,
+                  'vegan': r['Vegan'] ?? false,
+                  'glutenFree': r['GlutenFree'] ?? false,
+                  'veryPopular': r['VeryPopular'] ?? false,
+                  'likes': r['AggregateLikes'] ?? 0,
+                  'ingredientCount': r['IngredientCount'] ?? 0,
                 },
               )
               .toList();
