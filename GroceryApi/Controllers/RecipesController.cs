@@ -40,8 +40,11 @@ namespace GroceryApi.Controllers
         [HttpGet("recommend/{userId}")]
         public async Task<ActionResult<IEnumerable<RecipeRecommendation>>> GetRecommendedRecipes(string userId)
         {
+            Double matchPercentCutoff = 0.5;
             var recommendations = await _context.RecipeRecommendations
-                .FromSqlRaw("EXEC GetRecommendedRecipes @UserId", new SqlParameter("@UserId", userId))
+                .FromSqlRaw("EXEC GetRecommendedRecipes_MatchAll @UserId, @MatchPercentCutoff", 
+                new SqlParameter("@UserId", userId),
+                new SqlParameter("@MatchPercentCutoff", matchPercentCutoff))
                 .ToListAsync();
             return Ok(recommendations ?? new List<RecipeRecommendation>());
         }

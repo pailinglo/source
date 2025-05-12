@@ -119,10 +119,26 @@ namespace GroceryApi.Models
         public string RecipeId { get; set; }
         [MaxLength(255)]    
         public string Name { get; set; }
+        public string Instructions { get; set; }
+        public string ImageUrl { get; set; }
+        public int ReadyInMinutes { get; set; }
+        public int Servings { get; set; }
+        public string SourceUrl { get; set; }
+        public bool Vegetarian { get; set; }
+        public bool Vegan { get; set; }
+        public int PreparationMinutes { get; set; }
+        public int CookingMinutes { get; set; }
+        public bool GlutenFree { get; set; }
+        public bool VeryPopular { get; set; }
+        public int AggregateLikes { get; set; }
+        public string SourceName { get; set; }
+
         public int IngredientCount { get; set; }
         public int MajorIngredientCount { get; set; }
         public int MatchCount { get; set; }
-        public double MatchPercent { get; set; }
+        public double MatchPercent { get; set; }   
+        public int? MatchMajorCount { get; set; }
+        public double? MatchMajorPercent { get; set; }     
     }
 
     public class BatchIngredientsDto
