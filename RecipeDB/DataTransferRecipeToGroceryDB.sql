@@ -31,7 +31,7 @@ BEGIN
         (SELECT COUNT(*) FROM RecipeDB.dbo.RecipeIngredients ri WHERE ri.recipeId = r.id) AS IngredientCount,
         -- Assuming all ingredients are major since RecipeDB doesn't have IsMajor flag
         (SELECT COUNT(*) FROM RecipeDB.dbo.RecipeIngredients ri WHERE ri.recipeId = r.id) AS MajorIngredientCount,
-        r.image AS ImageUrl,
+        CAST(r.id as varchar) + '.' + r.imageFileType AS ImageUrl,
         r.readyInMinutes AS ReadyInMinutes,
         r.servings AS Servings,
         CASE WHEN rus.IsAccessible = 1 THEN r.sourceUrl ELSE '' END AS SourceUrl,
