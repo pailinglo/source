@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace GroceryApi.Models
 {
@@ -19,6 +20,7 @@ namespace GroceryApi.Models
         public string Name { get; set; }
         public List<RecipeIngredient> RecipeIngredients { get; set; }
         public List<UserIngredient> UserIngredients { get; set; }
+        public IngredientName IngredientName { get; set; }
     }
 
     public class UserIngredient
@@ -52,6 +54,7 @@ namespace GroceryApi.Models
         public bool GlutenFree { get; set; }
         public bool VeryPopular { get; set; }
         public int AggregateLikes { get; set; }
+        public string SourceName { get; set; }
         public List<RecipeCuisine> RecipeCuisines { get; set; }
         public List<RecipeDishType> RecipeDishTypes { get; set; }
         public List<RecipeIngredient> RecipeIngredients { get; set; }
@@ -116,12 +119,54 @@ namespace GroceryApi.Models
         public string RecipeId { get; set; }
         [MaxLength(255)]    
         public string Name { get; set; }
+        public string Instructions { get; set; }
+        public string ImageUrl { get; set; }
+        public int ReadyInMinutes { get; set; }
+        public int Servings { get; set; }
+        public string SourceUrl { get; set; }
+        public bool Vegetarian { get; set; }
+        public bool Vegan { get; set; }
+        public int PreparationMinutes { get; set; }
+        public int CookingMinutes { get; set; }
+        public bool GlutenFree { get; set; }
+        public bool VeryPopular { get; set; }
+        public int AggregateLikes { get; set; }
+        public string SourceName { get; set; }
+
         public int IngredientCount { get; set; }
         public int MajorIngredientCount { get; set; }
         public int MatchCount { get; set; }
-        public double MatchPercent { get; set; }
+        public double MatchPercent { get; set; }   
+        public int? MatchMajorCount { get; set; }
+        public double? MatchMajorPercent { get; set; }     
     }
 
+    // DTOs for API responses
+    // These classes are used to transfer data between the API and the client
+    public class RecipeRecommendationDto
+    {
+        public string RecipeId { get; set; }
+        public string Name { get; set; }
+        public List<string> Instructions { get; set; }
+        public string ImageUrl { get; set; }
+        public int ReadyInMinutes { get; set; }
+        public int Servings { get; set; }
+        public string SourceUrl { get; set; }
+        public bool Vegetarian { get; set; }
+        public bool Vegan { get; set; }
+        public int PreparationMinutes { get; set; }
+        public int CookingMinutes { get; set; }
+        public bool GlutenFree { get; set; }
+        public bool VeryPopular { get; set; }
+        public int AggregateLikes { get; set; }
+        public string SourceName { get; set; }
+        public int IngredientCount { get; set; }
+        public int MajorIngredientCount { get; set; }
+        public int MatchCount { get; set; }
+        public double MatchPercent { get; set; }   
+        public int? MatchMajorCount { get; set; }
+        public double? MatchMajorPercent { get; set; }     
+    }
     public class BatchIngredientsDto
     {
         public List<BatchIngredientItem> Items { get; set; }
@@ -138,5 +183,28 @@ namespace GroceryApi.Models
         [MaxLength(20)]
         public string IngredientId { get; set; }
         public string Name { get; set; }
+    }
+
+    public class IngredientName
+    {
+        [Key]
+        [ForeignKey("Ingredient")]
+        [MaxLength(20)]
+        public string IngredientId { get; set; }
+        public string OriginalName { get; set; }
+        public string LastNoun { get; set; }
+        public string Processed { get; set; }
+        public string Curated { get; set; }
+        public Ingredient Ingredient { get; set; }
+    }
+
+    public class IngredientSynonym
+    {
+        public string Name { get; set; }
+        public string Synonym { get; set; }
+        public int LLMReportOrder { get; set; }
+        public bool IsMisspelling { get; set; }
+        public string Region { get; set; }
+        public string LLMText { get; set; }
     }
 }

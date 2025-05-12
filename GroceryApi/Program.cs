@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using GroceryApi.Data;
+using GroceryApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,10 +9,14 @@ builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         // Handle circular references in JSON serialization
-        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
+        // options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
     });
 builder.Services.AddDbContext<GroceryContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddScoped<IngredientService>();
+builder.Services.AddScoped<RecipeService>();
+
 
 // Add JWT authentication (optional, enable for production)
 builder.Services.AddAuthentication("Bearer")
@@ -39,7 +44,7 @@ builder.Services.AddCors(options =>
 });
 
 
-builder.WebHost.UseUrls("http://0.0.0.0:5000", "https://0.0.0.0:5001");
+// builder.WebHost.UseUrls("http://0.0.0.0:5000", "https://0.0.0.0:5001");
 
 var app = builder.Build();
 
@@ -60,6 +65,13 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+// Serve static files from the specified directory. TO-DO: Change to your image hosting to blob storage
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(@"C:\Users\paili\recipe_images"),
+    RequestPath = "/images"
+});
 
 app.UseHttpsRedirection();
 app.UseAuthentication();

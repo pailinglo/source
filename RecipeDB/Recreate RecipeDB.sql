@@ -51,7 +51,8 @@ CREATE TABLE Recipes (
     imageDownloaded BIT DEFAULT 0,
     imageFileType VARCHAR(10) NULL,
     fetchDateTime DATETIME2,
-    sourceName NVARCHAR(100) NULL
+    sourceName NVARCHAR(100) NULL,
+	imageQuality INT NULL
 );
 
 CREATE TABLE RecipeIngredients (

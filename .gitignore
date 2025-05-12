@@ -3,5 +3,7 @@
 *.dll
 /GroceryApi/obj/
 /GroceryApi/bin/
-
+/GroceryApi.UnitTest/obj/
+/GroceryApi.UnitTest/bin/
+*-checkpoint.ipynb
 

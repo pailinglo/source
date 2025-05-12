@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 
 class SpoonacularCrawler:
     def __init__(self, api_key, db_connection_string, image_storage_path, 
-                 max_workers=1, request_timeout=5):
+                 max_workers=1, request_timeout=30):
         self.api_key = api_key
         self.db_connection_string = db_connection_string
         self.image_storage_path = image_storage_path
@@ -328,11 +328,11 @@ if __name__ == "__main__":
         db_connection_string=DB_CONNECTION_STRING,
         image_storage_path=IMAGE_STORAGE_PATH,
         max_workers=1,
-        request_timeout=5
+        request_timeout=30
     )
     
     try:
         # Start crawling from Last crowled ID and crawled number_to_crawl records.
-        crawler.crawl_recipes(number_to_crawl=1245)
+        crawler.crawl_recipes(number_to_crawl=1400)
     finally:
         crawler.close()

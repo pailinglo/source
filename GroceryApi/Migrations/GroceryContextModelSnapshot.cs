@@ -69,6 +69,29 @@ namespace GroceryApi.Migrations
                     b.ToTable("Ingredients");
                 });
 
+            modelBuilder.Entity("GroceryApi.Models.IngredientName", b =>
+                {
+                    b.Property<string>("IngredientId")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("LastNoun")
+                        .IsRequired()
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("OriginalName")
+                        .IsRequired()
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Processed")
+                        .IsRequired()
+                        .HasColumnType("varchar(100)");
+
+                    b.HasKey("IngredientId");
+
+                    b.ToTable("IngredientName");
+                });
+
             modelBuilder.Entity("GroceryApi.Models.Recipe", b =>
                 {
                     b.Property<string>("RecipeId")
@@ -298,6 +321,17 @@ namespace GroceryApi.Migrations
                     b.ToTable("UserIngredients");
                 });
 
+            modelBuilder.Entity("GroceryApi.Models.IngredientName", b =>
+                {
+                    b.HasOne("GroceryApi.Models.Ingredient", "Ingredient")
+                        .WithOne("IngredientName")
+                        .HasForeignKey("GroceryApi.Models.IngredientName", "IngredientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Ingredient");
+                });
+
             modelBuilder.Entity("GroceryApi.Models.RecipeCuisine", b =>
                 {
                     b.HasOne("GroceryApi.Models.Cuisine", "Cuisine")
@@ -386,6 +420,9 @@ namespace GroceryApi.Migrations
 
             modelBuilder.Entity("GroceryApi.Models.Ingredient", b =>
                 {
+                    b.Navigation("IngredientName")
+                        .IsRequired();
+
                     b.Navigation("RecipeIngredients");
 
                     b.Navigation("UserIngredients");

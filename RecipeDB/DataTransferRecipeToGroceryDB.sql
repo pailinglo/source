@@ -14,7 +14,8 @@ BEGIN
         ImageUrl, 
         ReadyInMinutes, 
         Servings, 
-        SourceUrl, 
+        SourceUrl,
+		SourceName,
         Vegetarian, 
         Vegan, 
         PreparationMinutes, 
@@ -30,10 +31,11 @@ BEGIN
         (SELECT COUNT(*) FROM RecipeDB.dbo.RecipeIngredients ri WHERE ri.recipeId = r.id) AS IngredientCount,
         -- Assuming all ingredients are major since RecipeDB doesn't have IsMajor flag
         (SELECT COUNT(*) FROM RecipeDB.dbo.RecipeIngredients ri WHERE ri.recipeId = r.id) AS MajorIngredientCount,
-        r.image AS ImageUrl,
+        CAST(r.id as varchar) + '.' + r.imageFileType AS ImageUrl,
         r.readyInMinutes AS ReadyInMinutes,
         r.servings AS Servings,
-        r.sourceUrl AS SourceUrl,
+        CASE WHEN rus.IsAccessible = 1 THEN r.sourceUrl ELSE '' END AS SourceUrl,
+		r.sourceName,
         ISNULL(r.vegetarian, 0) AS Vegetarian,
         ISNULL(r.vegan, 0) AS Vegan,
         ISNULL(r.preparationMinutes, 0) AS PreparationMinutes,
@@ -43,8 +45,9 @@ BEGIN
         ISNULL(r.aggregateLikes, 0) AS AggregateLikes
     FROM RecipeDB.dbo.Recipes r
     LEFT JOIN RecipeDB.dbo.RecipeUrlStatus rus ON r.id = rus.RecipeId
-    WHERE r.imageDownloaded = 1
+    WHERE r.imageDownloaded = 1 AND r.imageQuality is not null and r.imageQuality >= 0
     AND (r.instructions IS NOT NULL OR rus.IsAccessible = 1)
+    AND r.sourceName <> 'BBC Good Food' -- The recipe sourceUrl is not working
     AND NOT EXISTS (
         SELECT 1 FROM GroceryDB.dbo.Recipes gr 
         WHERE gr.RecipeId = CAST(r.id AS varchar(20)))
@@ -129,7 +132,7 @@ END;
 
 GO
 
-CREATE PROCEDURE [dbo].[TransferCuisines]
+ALTER PROCEDURE [dbo].[TransferCuisines]
 AS
 BEGIN
     INSERT INTO GroceryDB.dbo.Cuisine (CuisineId, Name)
@@ -140,16 +143,17 @@ BEGIN
     INNER JOIN RecipeDB.dbo.RecipeCuisines rc ON c.id = rc.cuisineId
     INNER JOIN RecipeDB.dbo.Recipes r ON rc.recipeId = r.id
     LEFT JOIN RecipeDB.dbo.RecipeUrlStatus rus ON r.id = rus.RecipeId
-    WHERE r.imageDownloaded = 1
+    WHERE r.imageDownloaded = 1 AND r.imageQuality is not null and r.imageQuality >= 0
     AND (r.instructions IS NOT NULL OR rus.IsAccessible = 1)
     AND NOT EXISTS (
         SELECT 1 FROM GroceryDB.dbo.Cuisine gc 
         WHERE gc.CuisineId = CAST(c.id AS varchar(20)));
 END
 
+
 GO
 
-CREATE PROCEDURE [dbo].[TransferDishTypes]
+ALTER PROCEDURE [dbo].[TransferDishTypes]
 AS
 BEGIN
     INSERT INTO GroceryDB.dbo.DishType (DishTypeId, Name)
@@ -160,7 +164,7 @@ BEGIN
     INNER JOIN RecipeDB.dbo.RecipeDishTypes rdt ON dt.id = rdt.dishTypeId
     INNER JOIN RecipeDB.dbo.Recipes r ON rdt.recipeId = r.id
     LEFT JOIN RecipeDB.dbo.RecipeUrlStatus rus ON r.id = rus.RecipeId
-    WHERE r.imageDownloaded = 1
+    WHERE r.imageDownloaded = 1 AND r.imageQuality is not null and r.imageQuality >= 0
     AND (r.instructions IS NOT NULL OR rus.IsAccessible = 1)
     AND NOT EXISTS (
         SELECT 1 FROM GroceryDB.dbo.DishType gdt 
@@ -172,7 +176,7 @@ GO
 -- The same combination of (RecipeID, IngredientId) might exist in the recipeIngredients for the same recipe. 
 -- The nameClean field might be the same or not, no matter what, we will choose only the first record for the same (RecipeId, IngredientID).
 
-CREATE PROCEDURE [dbo].[TransferRecipeIngredients]
+ALTER PROCEDURE [dbo].[TransferRecipeIngredients]
 AS
 BEGIN
     -- Use ROW_NUMBER() to deduplicate (RecipeId, IngredientId, NameClean)
@@ -190,7 +194,7 @@ BEGIN
         FROM RecipeDB.dbo.RecipeIngredients ri
         INNER JOIN RecipeDB.dbo.Recipes r ON ri.recipeId = r.id
         LEFT JOIN RecipeDB.dbo.RecipeUrlStatus rus ON r.id = rus.RecipeId
-        WHERE r.imageDownloaded = 1
+        WHERE r.imageDownloaded = 1 AND r.imageQuality is not null and r.imageQuality >= 0
         AND (r.instructions IS NOT NULL OR rus.IsAccessible = 1)
 		AND IngredientId <> '-1'
         AND EXISTS (
@@ -225,7 +229,7 @@ END
 
 GO
 
-CREATE PROCEDURE [dbo].[TransferRecipeCuisines]
+ALTER PROCEDURE [dbo].[TransferRecipeCuisines]
 AS
 BEGIN
     INSERT INTO GroceryDB.dbo.RecipeCuisine (RecipeId, CuisineId)
@@ -235,7 +239,7 @@ BEGIN
     FROM RecipeDB.dbo.RecipeCuisines rc
     INNER JOIN RecipeDB.dbo.Recipes r ON rc.recipeId = r.id
     LEFT JOIN RecipeDB.dbo.RecipeUrlStatus rus ON r.id = rus.RecipeId
-    WHERE r.imageDownloaded = 1
+    WHERE r.imageDownloaded = 1 AND r.imageQuality is not null and r.imageQuality >= 0
     AND (r.instructions IS NOT NULL OR rus.IsAccessible = 1)
     AND EXISTS (
         SELECT 1 FROM GroceryDB.dbo.Recipes gr 
@@ -248,7 +252,7 @@ END
 
 GO
 
-CREATE PROCEDURE [dbo].[TransferRecipeDishTypes]
+ALTER PROCEDURE [dbo].[TransferRecipeDishTypes]
 AS
 BEGIN
     INSERT INTO GroceryDB.dbo.RecipeDishType (RecipeId, DishTypeId)
@@ -258,7 +262,7 @@ BEGIN
     FROM RecipeDB.dbo.RecipeDishTypes rdt
     INNER JOIN RecipeDB.dbo.Recipes r ON rdt.recipeId = r.id
     LEFT JOIN RecipeDB.dbo.RecipeUrlStatus rus ON r.id = rus.RecipeId
-    WHERE r.imageDownloaded = 1
+    WHERE r.imageDownloaded = 1 AND r.imageQuality is not null and r.imageQuality >= 0
     AND (r.instructions IS NOT NULL OR rus.IsAccessible = 1)
     AND EXISTS (
         SELECT 1 FROM GroceryDB.dbo.Recipes gr 
