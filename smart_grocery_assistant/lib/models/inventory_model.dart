@@ -52,15 +52,15 @@ class InventoryModel extends ChangeNotifier {
                     r['instructions'] ?? [],
                   ), // Ensure instructions is a List<String>
                   'cookTime':
-                      r['CookingMinutes'] ??
+                      r['cookingMinutes'] ??
                       0, // Use 0 as a default value if null
-                  'imageUrl': r['ImageUrl'] ?? '',
-                  'vegetarian': r['Vegetarian'] ?? false,
-                  'vegan': r['Vegan'] ?? false,
-                  'glutenFree': r['GlutenFree'] ?? false,
-                  'veryPopular': r['VeryPopular'] ?? false,
-                  'likes': r['AggregateLikes'] ?? 0,
-                  'ingredientCount': r['IngredientCount'] ?? 0,
+                  'imageUrl': r['imageUrl'] ?? '',
+                  'vegetarian': r['vegetarian'] ?? false,
+                  'vegan': r['vegan'] ?? false,
+                  'glutenFree': r['glutenFree'] ?? false,
+                  'veryPopular': r['veryPopular'] ?? false,
+                  'likes': r['aggregateLikes'] ?? 0,
+                  'ingredientCount': r['ingredientCount'] ?? 0,
                 },
               )
               .toList();
