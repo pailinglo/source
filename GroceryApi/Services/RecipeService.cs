@@ -15,12 +15,52 @@ namespace GroceryApi.Services
             _context = context;
         }
 
-        public async Task<Recipe> GetRecipe(string recipeId)
+        public async Task<RecipeDto?> GetRecipe(string recipeId)
         {
-            return await _context.Recipes
+            var r = await _context.Recipes
                 .Include(r => r.RecipeIngredients)
-                .ThenInclude(ri => ri.Ingredient)
+                .Include(r => r.RecipeCuisines)
+                    .ThenInclude(rc => rc.Cuisine)
+                .Include(r => r.RecipeDishTypes)
+                    .ThenInclude(rd => rd.DishType)
                 .FirstOrDefaultAsync(r => r.RecipeId == recipeId);
+
+            if (r == null)
+            {
+                return null; // Return null explicitly for nullable type
+            }
+
+             return new RecipeDto
+            {
+                RecipeId = r.RecipeId,
+                Name = r.Name,
+                Instructions = GetRecipeInstructions(r.Instructions),
+                ImageUrl = r.ImageUrl,
+                ReadyInMinutes = r.ReadyInMinutes,
+                Servings = r.Servings,
+                Vegetarian = r.Vegetarian,
+                Vegan = r.Vegan,
+                GlutenFree = r.GlutenFree,
+                IngredientCount = r.IngredientCount,
+                MajorIngredientCount = r.MajorIngredientCount,
+                SourceUrl = r.SourceUrl,
+                SourceName = r.SourceName,
+                PreparationMinutes = r.PreparationMinutes,
+                CookingMinutes = r.CookingMinutes,
+                AggregateLikes = r.AggregateLikes,
+                VeryPopular = r.VeryPopular,
+                RecipeIngredients = r.RecipeIngredients.Select(ri => new RecipeIngredientDto
+                {
+                    IngredientId = ri.IngredientId,
+                    Amount = ri.Amount,
+                    Unit = ri.Unit,
+                    IsMajor = ri.IsMajor,
+                    OriginalText = ri.OriginalText,
+                    
+                }).ToList(),
+                RecipeCuisines = r.RecipeCuisines.Select(rc => rc.Cuisine.Name).ToList(), //list of cuisine names
+                RecipeDishTypes = r.RecipeDishTypes.Select(rd => rd.DishType.Name).ToList(), //list of dish type names
+            };
         }
         public async Task<IEnumerable<RecipeRecommendationDto>> GetRecommendedRecipes(string userId, double matchPercentCutoff)
         {
@@ -30,28 +70,19 @@ namespace GroceryApi.Services
                     new SqlParameter("@MatchPercentCutoff", matchPercentCutoff))
                 .ToListAsync();
             
-            var imageHostingUrl = "http://localhost:5169/images"; // Replace with your actual image hosting URL
-            foreach (var recommendation in recommendations)
-            {
-                recommendation.ImageUrl = $"{imageHostingUrl}/{recommendation.ImageUrl}";
-            }  
+            // var imageHostingUrl = "http://localhost:5169/images"; // Replace with your actual image hosting URL
+            var imageHostingUrl = "https://192.168.1.162:5001/images"; // Replace with your actual image hosting URL
 
             return recommendations.Select(r => new RecipeRecommendationDto
             {
                 RecipeId = r.RecipeId,
                 Name = r.Name,
-                Instructions = GetRecipeInstructions(r.Instructions),
                 ImageUrl = $"{imageHostingUrl}/{r.ImageUrl}",
                 ReadyInMinutes = r.ReadyInMinutes,
                 Servings = r.Servings,
                 Vegetarian = r.Vegetarian,
                 Vegan = r.Vegan,
                 GlutenFree = r.GlutenFree,
-                MatchCount = r.MatchCount,
-                MatchPercent = r.MatchPercent,
-                MajorIngredientCount = r.MajorIngredientCount,
-                MatchMajorCount = r.MatchMajorCount,
-                MatchMajorPercent = r.MatchMajorPercent,
                 IngredientCount = r.IngredientCount,
                 SourceUrl = r.SourceUrl,
                 SourceName = r.SourceName,
@@ -59,7 +90,6 @@ namespace GroceryApi.Services
                 CookingMinutes = r.CookingMinutes,
                 AggregateLikes = r.AggregateLikes,
                 VeryPopular = r.VeryPopular,
-
 
             });
               

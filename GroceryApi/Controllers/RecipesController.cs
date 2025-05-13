@@ -31,7 +31,7 @@ namespace GroceryApi.Controllers
         }
 
         [HttpGet("{recipeId}")]
-        public async Task<ActionResult<Recipe>> GetRecipe(string recipeId)
+        public async Task<ActionResult<RecipeDto>> GetRecipe(string recipeId)
         {
             var recipe = await _recipeService.GetRecipe(recipeId);
             if (recipe == null) return NotFound();
