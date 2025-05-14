@@ -30,12 +30,14 @@ namespace GroceryApi.Services
                 return null; // Return null explicitly for nullable type
             }
 
+            var imageHostingUrl = "https://192.168.1.162:5001/images"; // Replace with your actual image hosting URL
+
              return new RecipeDto
             {
                 RecipeId = r.RecipeId,
                 Name = r.Name,
                 Instructions = GetRecipeInstructions(r.Instructions),
-                ImageUrl = r.ImageUrl,
+                ImageUrl = $"{imageHostingUrl}/{r.ImageUrl}",
                 ReadyInMinutes = r.ReadyInMinutes,
                 Servings = r.Servings,
                 Vegetarian = r.Vegetarian,
@@ -65,7 +67,7 @@ namespace GroceryApi.Services
         public async Task<IEnumerable<RecipeRecommendationDto>> GetRecommendedRecipes(string userId, double matchPercentCutoff)
         {
             var recommendations = await _context.RecipeRecommendations
-                .FromSqlRaw("EXEC GetRecommendedRecipes_MatchAll @UserId, @MatchPercentCutoff",
+                .FromSqlRaw("EXEC GetRecommendedRecipes_MatchMajor @UserId, @MatchPercentCutoff",
                     new SqlParameter("@UserId", userId),
                     new SqlParameter("@MatchPercentCutoff", matchPercentCutoff))
                 .ToListAsync();
