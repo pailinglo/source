@@ -47,12 +47,13 @@ class InventoryModel extends ChangeNotifier {
           _recommendedRecipes
               .map(
                 (r) => {
+                  'recipeId': r['recipeId'],
                   'name': r['name'],
                   'instructions': List<String>.from(
                     r['instructions'] ?? [],
                   ), // Ensure instructions is a List<String>
                   'cookTime':
-                      r['cookingMinutes'] ??
+                      r['readyInMinutes'] ??
                       0, // Use 0 as a default value if null
                   'imageUrl': r['imageUrl'] ?? '',
                   'vegetarian': r['vegetarian'] ?? false,
@@ -69,6 +70,38 @@ class InventoryModel extends ChangeNotifier {
       print('Failed to load recommendations: $e');
       _recommendedRecipes = [];
       notifyListeners();
+    }
+  }
+
+  // Add this to your InventoryModel class
+  Future<Map<String, dynamic>> getRecipeDetails(String recipeId) async {
+    try {
+      final recipeData = await _apiService.getRecipe(recipeId);
+      // Convert API response to consistent format
+      return {
+        'name': recipeData['name'],
+        'instructions': List<String>.from(recipeData['instructions'] ?? []),
+        'cookTime': recipeData['readyInMinutes'] ?? 0,
+        'imageUrl': recipeData['imageUrl'] ?? '',
+        'recipeIngredients': List<String>.from(
+          recipeData['recipeIngredients'] ?? [],
+        ),
+        'vegetarian': recipeData['vegetarian'] ?? false,
+        'vegan': recipeData['vegan'] ?? false,
+        'glutenFree': recipeData['glutenFree'] ?? false,
+        'veryPopular': recipeData['veryPopular'] ?? false,
+        'likes': recipeData['aggregateLikes'] ?? 0,
+        'ingredientCount': recipeData['ingredientCount'] ?? 0,
+        'majorIngredientCount': recipeData['majorIngredientCount'] ?? 0,
+        'sourceName': recipeData['sourceName'] ?? '',
+        'sourceUrl': recipeData['sourceUrl'] ?? '',
+        'servings': recipeData['servings'] ?? 0,
+        'cuisines': recipeData['recipeCuisines'] ?? '',
+        'dishTypes': recipeData['recipeDishTypes'] ?? '',
+      };
+    } catch (e) {
+      print('Failed to load recipe details: $e');
+      throw Exception('Failed to load recipe details');
     }
   }
 }

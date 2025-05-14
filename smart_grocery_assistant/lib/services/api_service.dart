@@ -20,7 +20,7 @@ class ApiService {
 
     final groceries = await _dbHelper.getGroceries(userId);
     final unsynced = groceries.where((g) => g['synced'] == 0).toList();
-    
+
     // this does not handle deleted items.
     //if (unsynced.isEmpty) return;
 
@@ -82,6 +82,42 @@ class ApiService {
       return List<Map<String, dynamic>>.from(jsonDecode(response.body));
     } else {
       throw Exception('Failed to get recommendations: ${response.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> getRecipe(String recipeId) async {
+    if (!await isOnline()) {
+      return {
+        'recipeId': 'offline-r1',
+        'name': 'Offline Recipe',
+        'ingredientCount': 5,
+        'majorIngredientCount': 3,
+        'imageUrl': '',
+        'instructions': ['Step 1: Do something', 'Step 2: Do something else'],
+        'vegetarian': false,
+        'vegan': false,
+        'glutenFree': false,
+        'veryPopular': false,
+        'aggregateLikes': 0,
+        'cookingMinutes': 0,
+        'sourceName': 'Offline Source',
+        'sourceUrl': 'https://example.com/offline-recipe',
+        'recipeIngredients': [
+          {'originalText': 'Ingredient 1'},
+          {'originalText': 'Ingredient 2'},
+        ],
+      };
+    }
+
+    final response = await http.get(
+      Uri.parse('$_baseUrl/api/recipes/$recipeId'),
+      headers: {'Accept': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(jsonDecode(response.body));
+    } else {
+      throw Exception('Failed to get recipe: ${response.body}');
     }
   }
 

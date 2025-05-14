@@ -2,6 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'screens/recipe_detail_model.dart';
+import 'services/api_service.dart';
 import 'screens/add_grocery_screen.dart';
 import 'screens/scan_receipt_screen.dart';
 import 'models/inventory_model.dart';
@@ -28,11 +31,18 @@ void main() async {
     print('Error initializing cameras: $e');
   }
   final dbHelper = DatabaseHelper.instance;
+  final apiService = ApiService(dbHelper);
+
   runApp(
-    ChangeNotifierProvider(
-      create:
-          (context) =>
-              InventoryModel(dbHelper, '123'), // Replace '123' with auth
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (context) => InventoryModel(dbHelper, '123'),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => RecipeDetailModel(apiService),
+        ),
+      ],
       child: const SmartGroceryApp(),
     ),
   );
@@ -150,11 +160,12 @@ class HomeScreen extends StatelessWidget {
                   itemCount: recipes.length,
                   itemBuilder:
                       (context, index) => RecipePreview(
+                        recipeId: recipes[index]['recipeId'] as String,
                         name: recipes[index]['name'] as String,
-                        instructions:
-                            recipes[index]['instructions'] as List<String>,
                         cookTime: recipes[index]['cookTime'] as int,
                         imageUrl: recipes[index]['imageUrl'] as String,
+                        ingredientCount:
+                            recipes[index]['ingredientCount'] as int,
                       ),
                 ),
             Padding(
@@ -182,35 +193,47 @@ class HomeScreen extends StatelessWidget {
 }
 
 class RecipePreview extends StatelessWidget {
+  final String recipeId;
   final String name;
-  final List<String> instructions;
   final int cookTime;
   final String imageUrl;
+  final int ingredientCount;
 
   const RecipePreview({
     super.key,
+    required this.recipeId,
     required this.name,
-    required this.instructions,
     required this.cookTime,
     required this.imageUrl,
+    required this.ingredientCount,
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap:
-          () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder:
-                  (context) => RecipeDetailScreen(
-                    name: name,
-                    instructions: instructions,
-                    cookTime: cookTime,
-                    imageUrl: imageUrl,
-                  ),
-            ),
+      onTap: () async {
+        // Get the recipe ID from your preview data
+        final recipeId =
+            this.recipeId; // You'll need to add this to your recipe preview data
+
+        // Navigate immediately to detail screen with loading state
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder:
+                (context) => ChangeNotifierProvider.value(
+                  value: Provider.of<RecipeDetailModel>(context, listen: false),
+                  child: RecipeDetailScreen(recipeId: recipeId),
+                ),
           ),
+        );
+
+        // Then load the details
+        await Provider.of<RecipeDetailModel>(
+          context,
+          listen: false,
+        ).loadRecipeDetails(recipeId);
+      },
       child: Card(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         elevation: 2,
@@ -264,7 +287,8 @@ class RecipePreview extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${instructions.length} steps',
+                      // '${instructions.length} steps',
+                      '$ingredientCount ingredients',
                       style: const TextStyle(fontSize: 14, color: Colors.grey),
                     ),
                   ],
@@ -279,64 +303,108 @@ class RecipePreview extends StatelessWidget {
 }
 
 class RecipeDetailScreen extends StatelessWidget {
-  final String name;
-  final List<String> instructions;
-  final int cookTime;
-  final String imageUrl;
+  final String recipeId;
 
-  const RecipeDetailScreen({
-    super.key,
-    required this.name,
-    required this.instructions,
-    required this.cookTime,
-    required this.imageUrl,
-  });
+  const RecipeDetailScreen({super.key, required this.recipeId});
 
   @override
   Widget build(BuildContext context) {
+    final model = Provider.of<RecipeDetailModel>(context);
+
     return Scaffold(
-      appBar: AppBar(title: Text(name)),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Recipe Image
+      appBar: AppBar(title: const Text('Recipe Details')),
+      body: _buildBody(context, model),
+    );
+  }
+
+  Widget _buildBody(BuildContext context, RecipeDetailModel model) {
+    if (model.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (model.error != null) {
+      return Center(child: Text('Error: ${model.error}'));
+    }
+
+    if (model.recipeDetails == null) {
+      return const Center(child: Text('No recipe details available'));
+    }
+
+    final recipe = model.recipeDetails!;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Recipe Image
+          if (recipe['imageUrl']?.isNotEmpty ?? false)
             Container(
               height: 200,
               width: double.infinity,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
                 image: DecorationImage(
-                  image: NetworkImage(imageUrl),
+                  image: NetworkImage(recipe['imageUrl']),
                   fit: BoxFit.cover,
                 ),
               ),
             ),
-            const SizedBox(height: 16),
-            // Cooking Time
-            Row(
-              children: [
-                const Icon(Icons.timer, color: Colors.grey),
-                const SizedBox(width: 8),
-                Text(
-                  'Ready in $cookTime minutes',
-                  style: const TextStyle(fontSize: 16, color: Colors.grey),
-                ),
-              ],
+          const SizedBox(height: 20),
+          // Recipe Name
+          Text(
+            recipe['name'] ?? 'Unnamed Recipe', // Display the recipe name
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF333333),
             ),
-            const SizedBox(height: 24),
-            // Instructions Header
+          ),
+          // const SizedBox(height: 16),
+          // // Cooking Time
+          // Row(
+          //   children: [
+          //     const Icon(Icons.timer, color: Colors.grey),
+          //     const SizedBox(width: 8),
+          //     Text(
+          //       'Ready in ${recipe['readyInMinutes']} minutes',
+          //       style: const TextStyle(fontSize: 16, color: Colors.grey),
+          //     ),
+          //   ],
+          // ),
+          const SizedBox(height: 24),
+          // Ingredients
+          if (recipe['recipeIngredients']?.isNotEmpty ?? false) ...[
             const Text(
-              'Instructions:',
+              'Ingredients:',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            // Instructions List
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                for (int i = 0; i < instructions.length; i++)
+                for (final ingredient in recipe['recipeIngredients'])
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4.0),
+                    child: Text(
+                      '• ${ingredient['originalText']}',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 24),
+          ],
+          // Instructions
+          const Text(
+            'Instructions:',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          if (recipe['instructions']?.isNotEmpty ?? false) ...[
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (int i = 0; i < recipe['instructions'].length; i++)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8.0),
                     child: Row(
@@ -352,7 +420,7 @@ class RecipeDetailScreen extends StatelessWidget {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            instructions[i],
+                            recipe['instructions'][i],
                             style: const TextStyle(fontSize: 16),
                           ),
                         ),
@@ -361,8 +429,38 @@ class RecipeDetailScreen extends StatelessWidget {
                   ),
               ],
             ),
+          ] else if (recipe['sourceUrl']?.isNotEmpty ?? false) ...[
+            InkWell(
+              onTap: () async {
+                final url = recipe['sourceUrl'];
+                if (url != null) {
+                  final uri = Uri.parse(url);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  } else {
+                    // Handle the case where the URL cannot be launched
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Could not launch URL')),
+                    );
+                  }
+                }
+              },
+              child: Text(
+                recipe['sourceUrl'],
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Colors.blue,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+          ] else ...[
+            const Text(
+              'No instructions or source URL available.',
+              style: TextStyle(fontSize: 16, color: Colors.grey),
+            ),
           ],
-        ),
+        ],
       ),
     );
   }

@@ -244,6 +244,8 @@ PODS:
     - FlutterMacOS
   - SSZipArchive (2.6.0)
   - Try (2.1.1)
+  - url_launcher_ios (6.1.7):
+    - Flutter
 
 DEPENDENCIES:
   - camera_avfoundation (from `.symlinks/plugins/camera_avfoundation/ios`)
@@ -266,6 +268,7 @@ DEPENDENCIES:
   - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
   - speech_to_text (from `.symlinks/plugins/speech_to_text/ios`)
   - sqflite_darwin (from `.symlinks/plugins/sqflite_darwin/darwin`)
+  - url_launcher_ios (from `.symlinks/plugins/url_launcher_ios/ios`)
 
 SPEC REPOS:
   trunk:
@@ -347,6 +350,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/speech_to_text/ios"
   sqflite_darwin:
     :path: ".symlinks/plugins/sqflite_darwin/darwin"
+  url_launcher_ios:
+    :path: ".symlinks/plugins/url_launcher_ios/ios"
 
 SPEC CHECKSUMS:
   camera_avfoundation: 6ea6b97bcca5f02bbc6fa2007a6b1ad192bcc323
@@ -405,6 +410,7 @@ SPEC CHECKSUMS:
   sqflite_darwin: 1f89419786df117f0f3e5e49b8073ed932c3de47
   SSZipArchive: 8a6ee5677c8e304bebc109e39cf0da91ccef22ea
   Try: 5ef669ae832617b3cee58cb2c6f99fb767a4ff96
+  url_launcher_ios: a2b4ede195668730b8c2e7c0908577e5c22d9cf0
 
 PODFILE CHECKSUM: ff259bf920c7ebe93337e7bac39b49aa6acf7956
 
