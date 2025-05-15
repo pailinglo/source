@@ -41,8 +41,7 @@ namespace GroceryApi.Controllers
         [HttpGet("recommend/{userId}")]
         public async Task<ActionResult<IEnumerable<RecipeRecommendationDto>>> GetRecommendedRecipes(string userId)
         {
-            Double matchPercentCutoff = 0.5;
-            var recommendations = await _recipeService.GetRecommendedRecipes(userId, matchPercentCutoff);
+            var recommendations = await _recipeService.GetRecommendedRecipes(userId);
             
             return Ok(recommendations ?? new List<RecipeRecommendationDto>());
         }

@@ -1,20 +1,30 @@
 using System.Text.RegularExpressions;
 using GroceryApi.Data;
 using GroceryApi.Models;
+using GroceryApi.Configuration;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace GroceryApi.Services
 {
     public class RecipeService
     {
         private readonly GroceryContext _context;
-
-        public RecipeService(GroceryContext context)
+        private readonly MatchSettings _matchSettings;
+        private readonly ILogger<RecipeService> _logger;
+        private readonly IConfiguration _configuration;
+        public RecipeService(GroceryContext context, 
+            IOptions<MatchSettings> matchSettings, 
+            ILogger<RecipeService> logger,
+            IConfiguration configuration)
         {
+            _logger = logger;
             _context = context;
+            _matchSettings = matchSettings.Value; // Access the MatchSettings value
+            _configuration = configuration; // Access the configuration
         }
-
+        
         public async Task<RecipeDto?> GetRecipe(string recipeId)
         {
             var r = await _context.Recipes
@@ -64,16 +74,40 @@ namespace GroceryApi.Services
                 RecipeDishTypes = r.RecipeDishTypes.Select(rd => rd.DishType.Name).ToList(), //list of dish type names
             };
         }
-        public async Task<IEnumerable<RecipeRecommendationDto>> GetRecommendedRecipes(string userId, double matchPercentCutoff)
+        public async Task<IEnumerable<RecipeRecommendationDto>> GetRecommendedRecipes(string userId)
         {
-            var recommendations = await _context.RecipeRecommendations
-                .FromSqlRaw("EXEC GetRecommendedRecipes_MatchMajor @UserId, @MatchPercentCutoff",
-                    new SqlParameter("@UserId", userId),
-                    new SqlParameter("@MatchPercentCutoff", matchPercentCutoff))
-                .ToListAsync();
+             // Use the configured value from appsettings.json
+            string matchStoreProcedure = _matchSettings.MatchType switch
+            {
+                GroceryApi.Configuration.MatchType.MatchAll => "GetRecommendedRecipes_MatchAll",
+                GroceryApi.Configuration.MatchType.MatchMajor => "GetRecommendedRecipes_MatchMajor",
+                GroceryApi.Configuration.MatchType.MatchBoth => "GetRecommendedRecipes_MatchBoth",
+                _ => throw new ArgumentOutOfRangeException()
+            };
             
-            // var imageHostingUrl = "http://localhost:5169/images"; // Replace with your actual image hosting URL
-            var imageHostingUrl = "https://192.168.1.162:5001/images"; // Replace with your actual image hosting URL
+
+            List<RecipeRecommendation> recommendations;
+
+            _logger.LogInformation($"SP: {matchStoreProcedure} Cutoff:{_matchSettings.MatchPercentCutoff} MajorCutoff:{_matchSettings.MatchMajorPercentCutoff}");
+                
+            if(_matchSettings.MatchType == GroceryApi.Configuration.MatchType.MatchMajor ||
+               _matchSettings.MatchType == GroceryApi.Configuration.MatchType.MatchAll)
+            {
+                double matchPercentCutoff = _matchSettings.MatchPercentCutoff;
+                recommendations = await _context.RecipeRecommendations
+                    .FromSqlInterpolated($"EXEC {matchStoreProcedure} {userId}, {matchPercentCutoff}")
+                    .ToListAsync();
+            }
+            else
+            {
+                double Cutoff_All = _matchSettings.MatchPercentCutoff;
+                double Cutoff_Major = _matchSettings.MatchMajorPercentCutoff;
+                recommendations = await _context.RecipeRecommendations
+                    .FromSqlInterpolated($"EXEC {matchStoreProcedure} {userId}, {Cutoff_All}, {Cutoff_Major}")
+                    .ToListAsync();
+            }
+            
+            var imageHostingUrl = _configuration.GetValue<string>("ImageHost:BaseUrl"); //"https://192.168.1.162:5001/images"; // Replace with your actual image hosting URL
 
             return recommendations.Select(r => new RecipeRecommendationDto
             {

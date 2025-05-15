@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using GroceryApi.Data;
 using GroceryApi.Services;
+using GroceryApi.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,6 +29,7 @@ builder.Services.AddAuthentication("Bearer")
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.Configure<MatchSettings>(builder.Configuration.GetSection("MatchSettings"));
 
 // Configure CORS policy to allow requests from specific origins
 builder.Services.AddCors(options =>
