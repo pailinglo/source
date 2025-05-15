@@ -91,9 +91,9 @@ BEGIN
         RecipeMatches
     WHERE
         -- User has >70% of all ingredients (only if recipe has ingredients)
-        (IngredientCount > 0 AND CAST(MatchCount AS FLOAT) / IngredientCount > @Cutoff_All) OR
-        -- OR >80% of major ingredients (only if recipe has major ingredients)
-        (MajorIngredientCount > 0 AND CAST(MatchMajorCount AS FLOAT) / MajorIngredientCount > @Cutoff_Major)
+        ((IngredientCount > 0 AND CAST(MatchCount AS FLOAT) / IngredientCount >= @Cutoff_All)) AND
+        -- AND >80% of major ingredients (only if recipe has major ingredients)
+        ((MajorIngredientCount > 0 AND CAST(MatchMajorCount AS FLOAT) / MajorIngredientCount >= @Cutoff_Major))
     ORDER BY
         -- Sort by highest match percentage first
         CASE 
@@ -109,3 +109,6 @@ BEGIN
         -- Then by preparation time
         ReadyInMinutes ASC;
 END
+GO
+
+
