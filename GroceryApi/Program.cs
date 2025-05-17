@@ -13,8 +13,11 @@ builder.Services.AddControllers()
         // options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
         options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
     });
-builder.Services.AddDbContext<GroceryContext>(options =>
+
+// Add DbContextFactory instead of regular DbContext registration
+builder.Services.AddDbContextFactory<GroceryContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
 builder.Services.AddScoped<IngredientService>();
 builder.Services.AddScoped<RecipeService>();
 
@@ -50,6 +53,14 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+if(app.Environment.IsDevelopment())
+{
+    using var scope = app.Services.CreateScope();
+    var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<GroceryContext>>();
+    IngredientQueries.EnsureInitialized(factory);
+}
+
+
 // Apply policy based on environment
 if (app.Environment.IsDevelopment())
 {
@@ -74,6 +85,8 @@ app.UseStaticFiles(new StaticFileOptions
     FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(@"C:\Users\paili\recipe_images"),
     RequestPath = "/images"
 });
+
+
 
 app.UseHttpsRedirection();
 app.UseAuthentication();

@@ -1,7 +1,7 @@
 USE [GroceryDB]
 GO
 
-/****** Object:  Table [dbo].[IngredientName]    Script Date: 5/6/2025 10:38:36 AM ******/
+/****** Object:  Table [dbo].[IngredientName]    Script Date: 5/16/2025 10:38:43 PM ******/
 SET ANSI_NULLS ON
 GO
 
@@ -10,9 +10,11 @@ GO
 
 CREATE TABLE [dbo].[IngredientName](
 	[IngredientId] [varchar](20) NOT NULL,
-	[OriginalName] [varchar](100) NOT NULL,
-	[LastNoun] [varchar](100) NOT NULL,
-	[Processed] [varchar](100) NOT NULL,
+	[OriginalName] [nvarchar](100) NOT NULL,
+	[LastNoun] [nvarchar](100) NOT NULL,
+	[Processed] [nvarchar](100) NOT NULL,
+	[Curated] [nvarchar](100) NULL,
+	[Extended] [nvarchar](100) NULL,
  CONSTRAINT [PK_IngredientName] PRIMARY KEY CLUSTERED 
 (
 	[IngredientId] ASC

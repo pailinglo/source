@@ -16,15 +16,15 @@ namespace GroceryApi.Controllers
     {
         private readonly ILogger<UserIngredientsController> _logger;
 
-        private readonly GroceryContext? _context;
+        private readonly IDbContextFactory<GroceryContext> _contextFactory;
         private readonly IngredientService _ingredientService;
 
 
-        public UserIngredientsController(GroceryContext context, 
+        public UserIngredientsController(IDbContextFactory<GroceryContext> contextFactory, 
             ILogger<UserIngredientsController> logger,
             IngredientService ingredientService)
         {
-            _context = context;
+            _contextFactory = contextFactory;
             _logger = logger;
             _ingredientService = ingredientService;
         }

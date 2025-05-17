@@ -181,9 +181,11 @@ namespace GroceryApi.Data
             {
                 entity.HasKey(e => new { e.IngredientId });
                 entity.Property(e => e.IngredientId).HasColumnType("varchar(20)");
-                entity.Property(e => e.OriginalName).HasColumnType("varchar(100)");
-                entity.Property(e => e.Processed).HasColumnType("varchar(100)");
-                entity.Property(e => e.LastNoun).HasColumnType("varchar(100)");
+                entity.Property(e => e.OriginalName).HasColumnType("nvarchar(100)");
+                entity.Property(e => e.Processed).HasColumnType("nvarchar(100)");
+                entity.Property(e => e.LastNoun).HasColumnType("nvarchar(100)");
+                entity.Property(e => e.Curated).HasColumnType("nvarchar(100)");
+                entity.Property(e => e.Extended).HasColumnType("nvarchar(100)");
 
                 // Configure the one-to-one relationship with Ingredient
                 entity.HasOne(e => e.Ingredient)

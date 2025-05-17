@@ -12,18 +12,27 @@ namespace GroceryApi.Services
 {
     public class IngredientService
     {
-        private readonly GroceryContext _context;
+        // private readonly GroceryContext _context;
+        private readonly IDbContextFactory<GroceryContext> _contextFactory;
+
         private readonly ILogger<IngredientService> _logger;
 
-        public IngredientService(GroceryContext context, ILogger<IngredientService> logger)
+        public IngredientService(
+            IDbContextFactory<GroceryContext> contextFactory, 
+            ILogger<IngredientService> logger)
         {
-            _context = context;
+             _contextFactory = contextFactory;
             _logger = logger;
+        
+            // Initialize compiled queries on first use
+            IngredientQueries.EnsureInitialized(contextFactory);
         }
 
         public async Task SyncIngredients(string userId, BatchIngredientsDto dto)
         {
-            if (_context == null)
+            await using var context = await _contextFactory.CreateDbContextAsync();
+        
+            if (context == null)
             {
                 throw new System.Exception("Database context is not available.");
             }
@@ -48,47 +57,12 @@ namespace GroceryApi.Services
                 .ToList();
 
             // Fuzzy matching to ingredients from the database
-            var ingredients = await (
-                from i in _context.Ingredients
-                join n in _context.IngredientName on i.IngredientId equals n.IngredientId
-                where uniqueItems.Select(x => x.SingularName.ToLower()).Contains(i.Name.ToLower()) || 
-                    uniqueItems.Select(x => x.SingularName.ToLower()).Contains(n.Curated.ToLower())
-                select new
-                {
-                    i.IngredientId,
-                    i.Name
-                }
-            )
-            .Union(
-                from i in _context.Ingredients
-                join n in _context.IngredientName on i.IngredientId equals n.IngredientId
-                join syn in _context.IngredientSynonym on n.Curated equals syn.Name 
-                where 
-                (syn.LLMReportOrder <= 3 || syn.IsMisspelling) &&
-                uniqueItems.Select(x => x.SingularName.ToLower()).Contains(syn.Synonym.ToLower())
-                select new
-                {
-                    i.IngredientId,
-                    i.Name
-                }
-            )
-            .Union(
-                from i in _context.Ingredients
-                join n in _context.IngredientName on i.IngredientId equals n.IngredientId
-                join n2 in _context.IngredientName on n.Curated equals n2.Curated
-                where 
-                (uniqueItems.Select(x => x.SingularName.ToLower()).Contains(n2.Curated.ToLower()) ||
-                 uniqueItems.Select(x => x.SingularName.ToLower()).Contains(i.Name.ToLower()))
-                select new
-                {
-                    IngredientId = n2.IngredientId,
-                    Name = n2.OriginalName
-                    // i.IngredientId,
-                    // i.Name
-                }
-            )
-            .ToListAsync();
-
+            // First materialize the search terms locally
+            var searchTerms = uniqueItems.Select(x => x.SingularName.ToLower()).ToList();
+            
+            var ingredients = await SearchIngredients(searchTerms);
+            _logger.LogInformation("Found ingredients: {Ingredients}", System.Text.Json.JsonSerializer.Serialize(ingredients));
+            
             var newUserIngredients = new List<UserIngredient>();
             
             foreach(var ingredient in ingredients){
@@ -100,19 +74,55 @@ namespace GroceryApi.Services
                 _logger.LogInformation($"Added UserIngredient for user {userId}: {ingredient.Name}");
             }
 
-            using var transaction = await _context.Database.BeginTransactionAsync(); // Start a transaction
+            using var transaction = await context.Database.BeginTransactionAsync(); // Start a transaction
 
             // Delete existing user ingredients for the user
-            await _context.Database.ExecuteSqlRawAsync("DELETE FROM UserIngredients WHERE UserId = {0}", userId);
+            await context.Database.ExecuteSqlRawAsync("DELETE FROM UserIngredients WHERE UserId = {0}", userId);
 
             if (newUserIngredients.Any())
             {
-                _context.UserIngredients.AddRange(newUserIngredients);
+                context.UserIngredients.AddRange(newUserIngredients);
             }
 
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
             await transaction.CommitAsync(); // Commit the transaction
     
         }
+
+        public async Task<List<IngredientResult>> SearchIngredients(List<string> searchTerms)
+        {
+            // Create new context instance for this operation
+            //using var context = new GroceryContext(_contextOptions);
+            await using var context = await _contextFactory.CreateDbContextAsync();
+        
+            
+            // Execute queries in parallel - synchronous need separate context otherwise will encounter error:
+            // An attempt was made to use the context instance while it is being configured. A DbContext instance cannot be used inside 'OnConfiguring' since it is still being configured at this point. 
+            // var directTask = Task.Run(() => IngredientQueries.GetDirectMatches(context, searchTerms).ToList());
+            // var synonymTask = Task.Run(() => IngredientQueries.GetSynonymMatches(context, searchTerms).ToList());
+            // var crossTask = Task.Run(() => IngredientQueries.GetCrossIngredientMatches(context, searchTerms).ToList());
+            
+            var directMatches  = IngredientQueries.GetDirectMatches(context, searchTerms).ToList();
+            var synonymMatches  = IngredientQueries.GetSynonymMatches(context, searchTerms).ToList();
+            var reverseSynonymMatches  = IngredientQueries.GetReverseSynonymMatches(context, searchTerms).ToList();
+            var crossMatches  = IngredientQueries.GetCrossIngredientMatches(context, searchTerms).ToList();
+            
+
+            // await Task.WhenAll(directTask, synonymTask, crossTask);
+            
+            // Combine results
+            // return directTask.Result
+            //     .Union(synonymTask.Result)
+            //     .Union(crossTask.Result)
+            //     .ToList();
+
+            return directMatches
+            .Union(synonymMatches)
+            .Union(reverseSynonymMatches)
+            .Union(crossMatches)
+            .ToList();
+        }
+        
+        
     }
 }

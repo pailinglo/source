@@ -10,24 +10,26 @@ namespace GroceryApi.Services
 {
     public class RecipeService
     {
-        private readonly GroceryContext _context;
+        private readonly IDbContextFactory<GroceryContext> _contextFactory;
         private readonly MatchSettings _matchSettings;
         private readonly ILogger<RecipeService> _logger;
         private readonly IConfiguration _configuration;
-        public RecipeService(GroceryContext context, 
+        public RecipeService(IDbContextFactory<GroceryContext> contextFactory, 
             IOptions<MatchSettings> matchSettings, 
             ILogger<RecipeService> logger,
             IConfiguration configuration)
         {
             _logger = logger;
-            _context = context;
+            _contextFactory = contextFactory;    
             _matchSettings = matchSettings.Value; // Access the MatchSettings value
             _configuration = configuration; // Access the configuration
         }
         
         public async Task<RecipeDto?> GetRecipe(string recipeId)
         {
-            var r = await _context.Recipes
+            await using var context = await _contextFactory.CreateDbContextAsync();
+        
+            var r = await context.Recipes
                 .Include(r => r.RecipeIngredients)
                 .Include(r => r.RecipeCuisines)
                     .ThenInclude(rc => rc.Cuisine)
@@ -76,6 +78,8 @@ namespace GroceryApi.Services
         }
         public async Task<IEnumerable<RecipeRecommendationDto>> GetRecommendedRecipes(string userId)
         {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+        
              // Use the configured value from appsettings.json
             string matchStoreProcedure = _matchSettings.MatchType switch
             {
@@ -94,7 +98,7 @@ namespace GroceryApi.Services
                _matchSettings.MatchType == GroceryApi.Configuration.MatchType.MatchAll)
             {
                 double matchPercentCutoff = _matchSettings.MatchPercentCutoff;
-                recommendations = await _context.RecipeRecommendations
+                recommendations = await context.RecipeRecommendations
                     .FromSqlInterpolated($"EXEC {matchStoreProcedure} {userId}, {matchPercentCutoff}")
                     .ToListAsync();
             }
@@ -102,7 +106,7 @@ namespace GroceryApi.Services
             {
                 double Cutoff_All = _matchSettings.MatchPercentCutoff;
                 double Cutoff_Major = _matchSettings.MatchMajorPercentCutoff;
-                recommendations = await _context.RecipeRecommendations
+                recommendations = await context.RecipeRecommendations
                     .FromSqlInterpolated($"EXEC {matchStoreProcedure} {userId}, {Cutoff_All}, {Cutoff_Major}")
                     .ToListAsync();
             }

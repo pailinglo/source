@@ -9,16 +9,18 @@ namespace GroceryApi.Controllers
     [ApiController]
     public class IngredientsController : ControllerBase
     {
-        private readonly GroceryContext _context;
+        private readonly IDbContextFactory<GroceryContext> _contextFactory;
 
-        public IngredientsController(GroceryContext context)
+        public IngredientsController(IDbContextFactory<GroceryContext> contextFactory)
         {
-            _context = context;
+            _contextFactory = contextFactory;
         }
-
+        
         [HttpGet]
         public async Task<ActionResult<IEnumerable<IngredientDto>>> GetIngredients()
         {
+            await using var _context = await _contextFactory.CreateDbContextAsync();
+        
             var ingredients = await _context.Ingredients
                 .Select(i => new IngredientDto
                 {

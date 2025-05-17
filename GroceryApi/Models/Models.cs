@@ -230,6 +230,7 @@ public class RecipeIngredientDto
         public string LastNoun { get; set; }
         public string Processed { get; set; }
         public string Curated { get; set; }
+        public string Extended { get; set; }
         public Ingredient Ingredient { get; set; }
     }
 
