@@ -194,6 +194,7 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
               ],
             ),
           ),
+
           Expanded(
             child:
                 inventory.items.isEmpty
@@ -239,6 +240,63 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                         );
                       },
                     ),
+          ),
+          // Add Save button here
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color:
+                  inventory.hasUnsyncedItems || inventory.hasDeletion
+                      ? Theme.of(context).primaryColor
+                      : Colors.grey[400],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            ),
+            child: TextButton(
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.zero,
+                ),
+              ),
+              onPressed:
+                  inventory.hasUnsyncedItems || inventory.hasDeletion
+                      ? () async {
+                        try {
+                          // await _apiService.syncGroceries(widget.userId);
+                          await inventory.syncItems();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Groceries saved successfully!'),
+                            ),
+                          );
+                          _loadItems(); // Refresh the list
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Failed to save groceries: $e'),
+                            ),
+                          );
+                        }
+                      }
+                      : null,
+              child: Text(
+                'SAVE',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color:
+                      inventory.hasUnsyncedItems || inventory.hasDeletion
+                          ? Colors.white
+                          : Colors.grey[700],
+                ),
+              ),
+            ),
           ),
         ],
       ),

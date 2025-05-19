@@ -8,6 +8,9 @@ class InventoryModel extends ChangeNotifier {
   final ApiService _apiService;
   List<Map<String, dynamic>> _items = [];
   List<Map<String, dynamic>> _recommendedRecipes = [];
+  bool _hasDeletion = false; // Track if there are deletions
+  bool get hasDeletion => _hasDeletion;
+  int get recommendedRecipeCount => _recommendedRecipes.length;
 
   InventoryModel(this._dbHelper, this._userId)
     : _apiService = ApiService(_dbHelper) {
@@ -24,19 +27,38 @@ class InventoryModel extends ChangeNotifier {
   }
 
   Future<void> addItem(String name) async {
+    final existingItem = _items.firstWhere(
+      (item) => item['name'].toLowerCase() == name.toLowerCase(),
+      orElse: () => {},
+    );
+    if (existingItem.isNotEmpty) {
+      // Item already exists, no need to add it again
+      return;
+    }
     final mappedName =
         await _dbHelper.getMappedName(name.toLowerCase()) ?? name.toLowerCase();
     await _dbHelper.insertGrocery(_userId, name, mappedName);
     await loadItems();
-    await _apiService.syncGroceries(_userId);
-    await loadRecommendations();
   }
 
   Future<void> removeItem(int id) async {
     await _dbHelper.deleteGrocery(id);
+    _hasDeletion = true; // Set deletion flag to true
     await loadItems();
+  }
+
+  // Add a new method for manual sync
+  Future<void> syncItems() async {
+    if (!await _apiService.isOnline()) return;
     await _apiService.syncGroceries(_userId);
+    _hasDeletion = false; // Reset deletion flag after sync
+    await loadItems();
     await loadRecommendations();
+  }
+
+  // Check if there are unsynced items
+  bool get hasUnsyncedItems {
+    return _items.any((item) => item['synced'] == 0);
   }
 
   Future<void> loadRecommendations() async {
