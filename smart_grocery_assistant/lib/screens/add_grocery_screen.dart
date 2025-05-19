@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:camera/camera.dart';
@@ -28,6 +29,9 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
   String _voiceInput = '';
   String _lastAdded = '';
   late ApiService _apiService;
+  // scroll
+  final Map<int, bool> _highlightedItems = {};
+  late ScrollController _scrollController;
 
   @override
   void initState() {
@@ -36,6 +40,7 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
     _apiService = ApiService(DatabaseHelper.instance);
     _loadItems();
     _cacheIngredients();
+    _scrollController = ScrollController();
   }
 
   void _loadItems() {
@@ -51,15 +56,142 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
     }
   }
 
-  void _addItem(InventoryModel inventory) {
-    if (_controller.text.isNotEmpty) {
-      String item = _controller.text.trim();
-      inventory.addItem(item);
-      _lastAdded = item;
-      _voiceInput = '';
-      _controller.clear();
-      setState(() {});
+  void _addItem(InventoryModel inventory) async {
+    if (_controller.text.isEmpty) return;
+
+    final item = _controller.text.trim();
+    await inventory.addItem(item);
+
+    _lastAdded = item;
+    _voiceInput = '';
+
+    // Highlight new item
+    final newItem = inventory.items.last;
+    _highlightedItems[newItem['id']] = true;
+
+    // Auto-scroll and remove highlight after 3 seconds
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+
+      Future.delayed(Duration(seconds: 3), () {
+        if (mounted) {
+          setState(() => _highlightedItems.remove(newItem['id']));
+        }
+      });
+    });
+    // setState(() {});
+    _controller.clear();
+  }
+
+  Widget _buildSortSelector() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Row(
+        children: [
+          Text('Sort by:'),
+          SizedBox(width: 8),
+          DropdownButton<int>(
+            value: Provider.of<InventoryModel>(context).sortMode,
+            items: [
+              DropdownMenuItem(value: 1, child: Text('Recent')),
+              DropdownMenuItem(value: 2, child: Text('A-Z')),
+              DropdownMenuItem(value: 0, child: Text('Category')),
+            ],
+            onChanged: (value) {
+              Provider.of<InventoryModel>(context, listen: false).sortMode =
+                  value!;
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildItemList(InventoryModel inventory) {
+    final items = inventory.sortedItems;
+
+    if (inventory.sortMode == 0) {
+      // Category mode
+      final categorized = _groupByCategory(items);
+      return ListView.builder(
+        controller: _scrollController,
+        itemCount: categorized.keys.length,
+        itemBuilder: (ctx, index) {
+          final category = categorized.keys.elementAt(index);
+          final categoryItems = categorized[category]!;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Text(
+                  category,
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              ),
+              ...categoryItems.map((item) => _buildItemTile(item)).toList(),
+            ],
+          );
+        },
+      );
+    } else {
+      return ListView.builder(
+        controller: _scrollController,
+        itemCount: items.length,
+        itemBuilder: (ctx, index) => _buildItemTile(items[index]),
+      );
     }
+  }
+
+  Map<String, List<Map<String, dynamic>>> _groupByCategory(
+    List<Map<String, dynamic>> items,
+  ) {
+    final map = <String, List<Map<String, dynamic>>>{};
+    final inventory = Provider.of<InventoryModel>(context, listen: false);
+
+    for (final item in items) {
+      final category = inventory.getCategory(item['mapped_name']);
+      map.putIfAbsent(category, () => []).add(item);
+    }
+
+    // Sort categories alphabetically
+    return Map.fromEntries(
+      map.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),
+    );
+  }
+
+  Widget _buildItemTile(Map<String, dynamic> item) {
+    final inventory = Provider.of<InventoryModel>(context, listen: false);
+
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      color:
+          _highlightedItems.containsKey(item['id'])
+              ? Colors.green.withOpacity(0.2)
+              : const Color(0xFFEDEDED),
+      child: ListTile(
+        title: Text(
+          item['name']?.toString() ?? 'Unknown Item',
+          style: const TextStyle(color: Color(0xFF333333)),
+        ),
+        subtitle: Text(
+          item['synced'] == 1 ? 'Synced' : 'Pending sync',
+          style: TextStyle(
+            color: item['synced'] == 1 ? Colors.green : Colors.orange,
+          ),
+        ),
+        trailing: IconButton(
+          icon: const Icon(Icons.delete, color: Color(0xFFD32323)),
+          onPressed: () => inventory.removeItem(item['id'] ?? -1),
+        ),
+      ),
+    );
   }
 
   void _startListening() async {
@@ -67,57 +199,96 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
 
     bool available = await _speech.initialize(
       onStatus: (status) {
+        print('Speech status: $status');
         if (status == 'done' || status == 'notListening') {
-          setState(() => _isListening = false);
+          if (mounted) {
+            setState(() => _isListening = false);
+          }
         }
       },
       onError: (error) {
-        setState(() => _isListening = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Speech recognition failed: $error')),
-        );
+        print('Speech error: $error');
+        if (mounted) {
+          setState(() => _isListening = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Speech recognition failed: $error')),
+          );
+        }
       },
     );
-    if (available) {
-      setState(() => _isListening = true);
-      _voiceInput = '';
-      _lastAdded = '';
-      _controller.clear();
-      _speech.listen(
-        onResult: (result) {
-          setState(() {
-            String recognized = result.recognizedWords;
-            if (_lastAdded.isNotEmpty && recognized.startsWith(_lastAdded)) {
-              _voiceInput = recognized.substring(_lastAdded.length).trim();
-            } else {
-              _voiceInput = recognized;
-            }
-            _controller.text = _voiceInput;
-          });
-        },
-        listenFor: const Duration(seconds: 60),
-        pauseFor: const Duration(seconds: 5),
-        partialResults: true,
-        cancelOnError: true,
-      );
-    } else {
-      setState(() => _isListening = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Speech recognition not available.')),
-      );
+
+    if (!available) {
+      if (mounted) {
+        setState(() => _isListening = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Speech recognition not available.')),
+        );
+      }
+      return;
     }
+
+    if (mounted) {
+      setState(() {
+        _isListening = true;
+        _voiceInput = '';
+        _controller.clear();
+      });
+    }
+
+    _speech.listen(
+      onResult: (result) {
+        if (!mounted) return;
+        setState(() {
+          String recognized = result.recognizedWords;
+          if (_lastAdded.isNotEmpty && recognized.startsWith(_lastAdded)) {
+            _voiceInput = recognized.substring(_lastAdded.length).trim();
+          } else {
+            _voiceInput = recognized;
+          }
+          _controller.text = _voiceInput;
+        });
+      },
+      listenFor: const Duration(minutes: 5), // Longer session
+      pauseFor: const Duration(seconds: 10), // Longer pause tolerance
+      partialResults: true,
+      cancelOnError: true,
+      localeId: 'en_US', // Specify locale if needed
+      listenMode: stt.ListenMode.dictation, // Better for continuous input
+    );
   }
 
-  void _stopListening() {
-    _speech.stop();
-    _speech.cancel();
-    setState(() => _isListening = false);
-    if (_voiceInput.isNotEmpty) {
-      final inventory = Provider.of<InventoryModel>(context, listen: false);
-      inventory.addItem(_voiceInput.trim());
-      _lastAdded = _voiceInput.trim();
-      _voiceInput = '';
+  void _stopListening() async {
+    if (!_isListening) return;
+
+    try {
+      print('Stopping speech recognition...');
+      _speech.stop();
+
+      // Wait a brief moment for any final results
+      await Future.delayed(Duration(milliseconds: 200));
+
       _controller.clear();
+
+      if (mounted) {
+        setState(() {
+          _isListening = false;
+          _voiceInput = '';
+        });
+      }
+    } catch (e) {
+      print('Error stopping speech: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error stopping speech: $e')));
+    } finally {
+      print('Speech recognition stopped. Resetting state...');
+      if (mounted) {
+        setState(() {
+          _isListening = false;
+          _voiceInput = '';
+          _controller.clear();
+        });
+      }
     }
   }
 
@@ -133,8 +304,129 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
   @override
   void dispose() {
     _controller.dispose();
+    if (_isListening) {
+      _speech.stop();
+    }
     _speech.cancel();
     super.dispose();
+  }
+
+  Widget _buildInputRow(InventoryModel inventory) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _controller,
+              decoration: const InputDecoration(
+                hintText: 'Enter grocery item (e.g., Tomato)',
+                border: OutlineInputBorder(),
+                filled: true,
+                fillColor: Color(0xFFEDEDED),
+              ),
+              onSubmitted: (_) => _addItem(inventory),
+            ),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: () => _addItem(inventory),
+            child: const Text('Add'),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            // icon: Icon(
+            //   _isListening ? Icons.mic : Icons.mic_none,
+            //   color: _isListening ? Colors.red : Colors.grey,
+            // ),
+            icon:
+                _isListening
+                    ? Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        const Icon(Icons.mic, color: Colors.red),
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: Container(
+                            width: 12,
+                            height: 12,
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                    : const Icon(Icons.mic_none, color: Colors.grey),
+            onPressed: _isListening ? _stopListening : _startListening,
+            tooltip: _isListening ? 'Stop Listening' : 'Voice Input',
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.camera_alt, color: Colors.grey),
+            onPressed: _navigateToScan,
+            tooltip: 'Scan Receipt',
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Restore the save button
+  Widget _buildSaveButton(InventoryModel inventory) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color:
+            inventory.hasUnsyncedItems || inventory.hasDeletion
+                ? Theme.of(context).primaryColor
+                : Colors.grey[400],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: TextButton(
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        ),
+        onPressed:
+            inventory.hasUnsyncedItems || inventory.hasDeletion
+                ? () async {
+                  try {
+                    await inventory.syncItems();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Groceries saved successfully!'),
+                      ),
+                    );
+                    _loadItems();
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed to save groceries: $e')),
+                    );
+                  }
+                }
+                : null,
+        child: Text(
+          'SAVE',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color:
+                inventory.hasUnsyncedItems || inventory.hasDeletion
+                    ? Colors.white
+                    : Colors.grey[700],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -143,58 +435,65 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Add Groceries',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+        title: const Text('Add Groceries'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.sort),
+            onPressed:
+                () => showModalBottomSheet(
+                  context: context,
+                  builder:
+                      (ctx) => Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.only(top: 16),
+                            child: Text(
+                              'Sort Options',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          const Divider(),
+                          ListTile(
+                            leading: const Icon(Icons.access_time),
+                            title: const Text('Recently Added First'),
+                            onTap: () {
+                              inventory.sortMode = 1;
+                              Navigator.pop(ctx);
+                            },
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.sort_by_alpha),
+                            title: const Text('Alphabetical Order'),
+                            onTap: () {
+                              inventory.sortMode = 2;
+                              Navigator.pop(ctx);
+                            },
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.category),
+                            title: const Text('Group by Category'),
+                            onTap: () {
+                              inventory.sortMode = 0;
+                              Navigator.pop(ctx);
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                      ),
+                ),
           ),
-        ),
-        backgroundColor: Theme.of(context).primaryColor,
+        ],
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    decoration: const InputDecoration(
-                      hintText: 'Enter grocery item (e.g., Tomato)',
-                      border: OutlineInputBorder(),
-                      filled: true,
-                      fillColor: Color(0xFFEDEDED),
-                    ),
-                    onSubmitted: (_) => _addItem(inventory),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: () => _addItem(inventory),
-                  child: const Text('Add'),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: Icon(
-                    _isListening ? Icons.mic : Icons.mic_none,
-                    color: _isListening ? Colors.red : Colors.grey,
-                  ),
-                  onPressed: _isListening ? _stopListening : _startListening,
-                  tooltip: _isListening ? 'Stop Listening' : 'Voice Input',
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.camera_alt, color: Colors.grey),
-                  onPressed: _navigateToScan,
-                  tooltip: 'Scan Receipt',
-                ),
-              ],
-            ),
-          ),
+          // Restored input row
+          _buildInputRow(inventory),
 
+          // Sort selector (if needed)
+          _buildSortSelector(),
+
+          // Item list
           Expanded(
             child:
                 inventory.items.isEmpty
@@ -204,100 +503,11 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                         style: TextStyle(color: Color(0xFF333333)),
                       ),
                     )
-                    : ListView.builder(
-                      itemCount: inventory.items.length,
-                      itemBuilder: (context, index) {
-                        final item = inventory.items[index];
-                        return Card(
-                          elevation: 2,
-                          margin: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 4,
-                          ),
-                          color: const Color(0xFFEDEDED),
-                          child: ListTile(
-                            title: Text(
-                              item['name'],
-                              style: const TextStyle(color: Color(0xFF333333)),
-                            ),
-                            subtitle: Text(
-                              item['synced'] == 1 ? 'Synced' : 'Pending sync',
-                              style: TextStyle(
-                                color:
-                                    item['synced'] == 1
-                                        ? Colors.green
-                                        : Colors.orange,
-                              ),
-                            ),
-                            trailing: IconButton(
-                              icon: const Icon(
-                                Icons.delete,
-                                color: Color(0xFFD32323),
-                              ),
-                              onPressed: () => inventory.removeItem(item['id']),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                    : _buildItemList(inventory),
           ),
-          // Add Save button here
-          Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color:
-                  inventory.hasUnsyncedItems || inventory.hasDeletion
-                      ? Theme.of(context).primaryColor
-                      : Colors.grey[400],
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 4,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: TextButton(
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.zero,
-                ),
-              ),
-              onPressed:
-                  inventory.hasUnsyncedItems || inventory.hasDeletion
-                      ? () async {
-                        try {
-                          // await _apiService.syncGroceries(widget.userId);
-                          await inventory.syncItems();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Groceries saved successfully!'),
-                            ),
-                          );
-                          _loadItems(); // Refresh the list
-                        } catch (e) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Failed to save groceries: $e'),
-                            ),
-                          );
-                        }
-                      }
-                      : null,
-              child: Text(
-                'SAVE',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color:
-                      inventory.hasUnsyncedItems || inventory.hasDeletion
-                          ? Colors.white
-                          : Colors.grey[700],
-                ),
-              ),
-            ),
-          ),
+
+          // Restored save button
+          _buildSaveButton(inventory),
         ],
       ),
     );

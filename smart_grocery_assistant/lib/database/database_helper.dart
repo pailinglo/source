@@ -19,7 +19,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 2, // Updated for new columns and ingredients_cache
+      version: 3, // Updated for new columns and ingredients_cache
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE ingredients (
@@ -43,6 +43,8 @@ class DatabaseHelper {
             mapped_name TEXT NOT NULL,
             synced INTEGER NOT NULL DEFAULT 0,
             ingredient_id INTEGER,
+            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            category TEXT,
             FOREIGN KEY (ingredient_id) REFERENCES ingredients(id)
           )
         ''');
@@ -68,91 +70,28 @@ class DatabaseHelper {
             name TEXT NOT NULL
           )
         ''');
-        await _seedInitialData(db);
+        await migrateNullTimestamps();
       },
       onUpgrade: (db, oldVersion, newVersion) async {
-        if (oldVersion < 2) {
-          // Add user_id, name, mapped_name, synced to groceries
+        if (oldVersion < 3) {
+          //no need to preserver existing data.
+          await db.execute('DROP TABLE groceries');
           await db.execute('''
-            CREATE TABLE groceries_new (
+            CREATE TABLE groceries (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
               user_id TEXT NOT NULL,
               name TEXT NOT NULL,
               mapped_name TEXT NOT NULL,
               synced INTEGER NOT NULL DEFAULT 0,
               ingredient_id INTEGER,
+              created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+              category TEXT,
               FOREIGN KEY (ingredient_id) REFERENCES ingredients(id)
             )
-          ''');
-          await db.execute('''
-            INSERT INTO groceries_new (id, user_id, name, mapped_name, ingredient_id)
-            SELECT g.id, '123', i.name, i.name, ingredient_id
-            FROM groceries g
-            JOIN ingredients i ON g.ingredient_id = i.id
-          ''');
-          await db.execute('DROP TABLE groceries');
-          await db.execute('ALTER TABLE groceries_new RENAME TO groceries');
-          await db.execute('''
-            CREATE TABLE ingredients_cache (
-              ingredient_id TEXT PRIMARY KEY,
-              name TEXT NOT NULL
-            )
-          ''');
+            ''');
         }
       },
     );
-  }
-
-  Future<void> _seedInitialData(Database db) async {
-    // Insert canonical ingredients
-    await db.insert('ingredients', {'name': 'tomato'});
-    await db.insert('ingredients', {'name': 'chicken'});
-    await db.insert('ingredients', {'name': 'pasta'});
-    await db.insert('ingredients', {'name': 'basil'});
-    await db.insert('ingredients', {'name': 'rice'});
-    await db.insert('ingredients', {'name': 'potato'});
-
-    // Insert synonyms
-    await db.insert('synonyms', {'synonym': 'tomatoes', 'ingredient_id': 1});
-    await db.insert('synonyms', {
-      'synonym': 'chicken breast',
-      'ingredient_id': 2,
-    });
-    await db.insert('synonyms', {'synonym': 'spaghetti', 'ingredient_id': 3});
-    await db.insert('synonyms', {'synonym': 'potatoes', 'ingredient_id': 6});
-    await db.insert('synonyms', {'synonym': 'taters', 'ingredient_id': 6});
-
-    // Insert sample recipes
-    await db.insert('recipes', {
-      'name': 'Tomato Basil Pasta',
-      'instructions': 'Cook pasta, add tomato sauce and basil.',
-    });
-    await db.insert('recipes', {
-      'name': 'Chicken Stir Fry',
-      'instructions': 'Stir fry chicken with rice.',
-    });
-
-    // Insert recipe ingredients
-    await db.insert('recipe_ingredients', {
-      'recipe_id': 1,
-      'ingredient_id': 1,
-    }); // Tomato
-    await db.insert('recipe_ingredients', {
-      'recipe_id': 1,
-      'ingredient_id': 3,
-    }); // Pasta
-    await db.insert('recipe_ingredients', {
-      'recipe_id': 1,
-      'ingredient_id': 4,
-    }); // Basil
-    await db.insert('recipe_ingredients', {
-      'recipe_id': 2,
-      'ingredient_id': 2,
-    }); // Chicken
-    await db.insert('recipe_ingredients', {
-      'recipe_id': 2,
-      'ingredient_id': 5,
-    }); // Rice
   }
 
   Future<int> _getOrCreateLocalIngredientId(String name) async {
@@ -218,6 +157,7 @@ class DatabaseHelper {
       'mapped_name': mappedName,
       'ingredient_id': ingredientId,
       'synced': 0,
+      'created_at': DateTime.now().millisecondsSinceEpoch ~/ 1000,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
@@ -275,6 +215,14 @@ class DatabaseHelper {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, 'grocery_assistant.db');
     await deleteDatabase(path);
+  }
+
+  // Add this to your database helper
+  Future<void> migrateNullTimestamps() async {
+    final db = await database;
+    await db.execute(
+      'UPDATE groceries SET created_at = strftime("%s","now") WHERE created_at IS NULL',
+    );
   }
 
   Future<void> debugSchema() async {

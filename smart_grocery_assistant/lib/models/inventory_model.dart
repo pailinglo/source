@@ -11,6 +11,22 @@ class InventoryModel extends ChangeNotifier {
   bool _hasDeletion = false; // Track if there are deletions
   bool get hasDeletion => _hasDeletion;
   int get recommendedRecipeCount => _recommendedRecipes.length;
+  // sort the items by 0=timestamp, 1=alphabetical, 2=category
+  int _sortMode = 0;
+  final Map<String, String> _categoryMap = {
+    'tomato': 'Vegetables',
+    'chicken': 'Meat',
+    'milk': 'Dairy',
+    'pork': 'Meat',
+    'oyster': 'Seafood',
+    'yogurt': 'Dairy',
+    // TO-DO create a mapping table
+  };
+  int get sortMode => _sortMode;
+  set sortMode(int mode) {
+    _sortMode = mode;
+    notifyListeners();
+  }
 
   InventoryModel(this._dbHelper, this._userId)
     : _apiService = ApiService(_dbHelper) {
@@ -125,5 +141,45 @@ class InventoryModel extends ChangeNotifier {
       print('Failed to load recipe details: $e');
       throw Exception('Failed to load recipe details');
     }
+  }
+
+  List<Map<String, dynamic>> get sortedItems {
+    final items = List<Map<String, dynamic>>.from(_items);
+
+    switch (_sortMode) {
+      case 1: // Timestamp (newest first)
+        items.sort((a, b) {
+          final aTime = a['created_at'] ?? 0;
+          final bTime = b['created_at'] ?? 0;
+          return bTime.compareTo(aTime);
+        });
+        break;
+
+      case 2: // Alphabetical
+        items.sort((a, b) {
+          final aName = a['name']?.toString().toLowerCase() ?? '';
+          final bName = b['name']?.toString().toLowerCase() ?? '';
+          return aName.compareTo(bName);
+        });
+        break;
+
+      case 0: // Category
+        items.sort((a, b) {
+          final catA = getCategory(a['mapped_name']?.toString() ?? 'Other');
+          final catB = getCategory(b['mapped_name']?.toString() ?? 'Other');
+          return catA.compareTo(catB);
+        });
+        break;
+    }
+
+    return items;
+  }
+
+  String getCategory(String mappedName) {
+    return _categoryMap[mappedName]?.trim() ??
+        _categoryMap.values.firstWhere(
+          (cat) => cat.toLowerCase() == mappedName.toLowerCase(),
+          orElse: () => 'Other',
+        );
   }
 }
