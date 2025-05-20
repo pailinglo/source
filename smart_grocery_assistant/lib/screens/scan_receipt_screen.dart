@@ -97,7 +97,7 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
   List<String> _parseReceiptText(String text) {
     final items = <String>[];
     final lines = text.split('\n');
-
+    print("Parsed lines: $lines");
     // Common patterns to exclude
     final excludePatterns = [
       'total',
@@ -110,6 +110,22 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
       'debit',
       'credit',
       'balance',
+      'sales',
+      'savings',
+      'weight',
+      'qty',
+      'paid',
+      'sold',
+      'chip card',
+      'discount',
+      'markdown',
+      'amount',
+      r'$',
+      '%',
+      r'*',
+      '!',
+      '@',
+      '#',
     ];
 
     for (final line in lines) {
