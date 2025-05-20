@@ -95,16 +95,46 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
   }
 
   List<String> _parseReceiptText(String text) {
-    List<String> items = [];
-    List<String> lines = text.split('\n');
-    for (String line in lines) {
-      if (RegExp(r'\d+\.\d{2}').hasMatch(line)) {
-        String item = line.replaceAll(RegExp(r'\s*\d+\.\d{2}'), '').trim();
-        if (item.isNotEmpty && !item.toLowerCase().contains('total')) {
-          items.add(item);
-        }
+    final items = <String>[];
+    final lines = text.split('\n');
+
+    // Common patterns to exclude
+    final excludePatterns = [
+      'total',
+      'subtotal',
+      'tax',
+      'change',
+      'cash',
+      'visa',
+      'mastercard',
+      'debit',
+      'credit',
+      'balance',
+    ];
+
+    for (final line in lines) {
+      // Skip empty lines or very short lines (likely not items)
+      if (line.trim().isEmpty || line.trim().length < 3) continue;
+
+      // Skip common non-item lines
+      if (excludePatterns.any(
+        (pattern) => line.toLowerCase().contains(pattern),
+      )) {
+        continue;
+      }
+
+      // Remove price patterns (e.g., "2.99", "£1.50", "5,00")
+      var item = line.replaceAll(RegExp(r'[\d\.,]+\s*[\$€£¥]?'), '').trim();
+      item = item.replaceAll(RegExp(r'[\$€£¥]\s*[\d\.,]+'), '').trim();
+
+      // Remove quantity patterns (e.g., "2x", "3 @")
+      item = item.replaceAll(RegExp(r'\d+\s*[x@]'), '').trim();
+
+      if (item.isNotEmpty) {
+        items.add(item);
       }
     }
+
     return items;
   }
 
