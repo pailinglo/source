@@ -7,6 +7,7 @@ import '../models/inventory_model.dart';
 import '../services/api_service.dart';
 import '../database/database_helper.dart';
 import 'scan_receipt_screen.dart';
+import 'speech_input_screen.dart';
 
 class AddGroceryScreen extends StatefulWidget {
   final List<CameraDescription> cameras;
@@ -83,7 +84,6 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
         }
       });
     });
-    // setState(() {});
     _controller.clear();
   }
 
@@ -194,104 +194,6 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
     );
   }
 
-  void _startListening() async {
-    if (_isListening) return;
-
-    bool available = await _speech.initialize(
-      onStatus: (status) {
-        print('Speech status: $status');
-        if (status == 'done' || status == 'notListening') {
-          if (mounted) {
-            setState(() => _isListening = false);
-          }
-        }
-      },
-      onError: (error) {
-        print('Speech error: $error');
-        if (mounted) {
-          setState(() => _isListening = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Speech recognition failed: $error')),
-          );
-        }
-      },
-    );
-
-    if (!available) {
-      if (mounted) {
-        setState(() => _isListening = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Speech recognition not available.')),
-        );
-      }
-      return;
-    }
-
-    if (mounted) {
-      setState(() {
-        _isListening = true;
-        _voiceInput = '';
-        _controller.clear();
-      });
-    }
-
-    _speech.listen(
-      onResult: (result) {
-        if (!mounted) return;
-        setState(() {
-          String recognized = result.recognizedWords;
-          if (_lastAdded.isNotEmpty && recognized.startsWith(_lastAdded)) {
-            _voiceInput = recognized.substring(_lastAdded.length).trim();
-          } else {
-            _voiceInput = recognized;
-          }
-          _controller.text = _voiceInput;
-        });
-      },
-      listenFor: const Duration(minutes: 5), // Longer session
-      pauseFor: const Duration(seconds: 10), // Longer pause tolerance
-      partialResults: true,
-      cancelOnError: true,
-      localeId: 'en_US', // Specify locale if needed
-      listenMode: stt.ListenMode.dictation, // Better for continuous input
-    );
-  }
-
-  void _stopListening() async {
-    if (!_isListening) return;
-
-    try {
-      print('Stopping speech recognition...');
-      _speech.stop();
-
-      // Wait a brief moment for any final results
-      await Future.delayed(Duration(milliseconds: 200));
-
-      _controller.clear();
-
-      if (mounted) {
-        setState(() {
-          _isListening = false;
-          _voiceInput = '';
-        });
-      }
-    } catch (e) {
-      print('Error stopping speech: $e');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error stopping speech: $e')));
-    } finally {
-      print('Speech recognition stopped. Resetting state...');
-      if (mounted) {
-        setState(() {
-          _isListening = false;
-          _voiceInput = '';
-          _controller.clear();
-        });
-      }
-    }
-  }
-
   void _navigateToScan() {
     Navigator.push(
       context,
@@ -335,33 +237,9 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
           ),
           const SizedBox(width: 8),
           IconButton(
-            // icon: Icon(
-            //   _isListening ? Icons.mic : Icons.mic_none,
-            //   color: _isListening ? Colors.red : Colors.grey,
-            // ),
-            icon:
-                _isListening
-                    ? Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        const Icon(Icons.mic, color: Colors.red),
-                        Positioned(
-                          top: 0,
-                          right: 0,
-                          child: Container(
-                            width: 12,
-                            height: 12,
-                            decoration: const BoxDecoration(
-                              color: Colors.red,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
-                      ],
-                    )
-                    : const Icon(Icons.mic_none, color: Colors.grey),
-            onPressed: _isListening ? _stopListening : _startListening,
-            tooltip: _isListening ? 'Stop Listening' : 'Voice Input',
+            icon: const Icon(Icons.mic_none, color: Colors.grey),
+            onPressed: () => _launchSpeechInput(),
+            tooltip: 'Voice Input',
           ),
           const SizedBox(width: 8),
           IconButton(
@@ -372,6 +250,62 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
         ],
       ),
     );
+  }
+
+  void _launchSpeechInput() async {
+    final List<String>? items = await Navigator.push<List<String>>(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => SpeechInputScreen(
+              onItemsConfirmed: (items) => items, //This can be removed?
+            ),
+      ),
+    );
+
+    print('Received items from speech screen: $items');
+
+    if (items != null && items.isNotEmpty) {
+      print('Processing ${items.length} items');
+      final inventory = Provider.of<InventoryModel>(context, listen: false);
+      for (final item in items) {
+        if (item.trim().isNotEmpty) {
+          await inventory.addItem(item.trim());
+
+          // Highlight each new item
+          final newItem = inventory.items.last;
+          _highlightedItems[newItem['id']] = true;
+
+          // Auto-scroll and remove highlight after 3 seconds
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            // _scrollController.animateTo(
+            //   _scrollController.position.maxScrollExtent,
+            //   duration: Duration(milliseconds: 300),
+            //   curve: Curves.easeOut,
+            // );
+
+            Future.delayed(Duration(seconds: 3), () {
+              if (mounted) {
+                setState(() => _highlightedItems.remove(newItem['id']));
+              }
+            });
+          });
+        }
+      }
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Added ${items.length} item(s)'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+      // Refresh the item list
+      if (mounted) {
+        setState(() {});
+      }
+    }
   }
 
   // Restore the save button
@@ -401,6 +335,7 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                 ? () async {
                   try {
                     await inventory.syncItems();
+                    if (!mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Groceries saved successfully!'),
@@ -408,6 +343,7 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                     );
                     _loadItems();
                   } catch (e) {
+                    if (!mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('Failed to save groceries: $e')),
                     );
