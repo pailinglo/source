@@ -150,14 +150,15 @@ class SpoonacularCrawler:
                     'original': ingredient.get('original'),
                     'originalName': ingredient.get('originalName'),
                     'amount': ingredient.get('amount'),
-                    'unit': ingredient.get('unit')
+                    'unit': ingredient.get('unit'),
+                    'aisle': ingredient.get('aisle'),
                 }
                 
                 self.cursor.execute("""
                     INSERT INTO RecipeIngredients (
                         recipeId, ingredientId, name, nameClean, 
-                        original, originalName, amount, unit
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        original, originalName, amount, unit, aisle
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, *ingredient_data.values())
             
             # Save cuisines (array handling)
@@ -319,7 +320,8 @@ class SpoonacularCrawler:
 # Configuration
 API_KEY = "APIKEY"
 DB_CONNECTION_STRING = "DRIVER={ODBC Driver 17 for SQL Server};SERVER=(localdb)\\MSSQLLocalDB;DATABASE=RecipeDB;Trusted_Connection=yes;"
-IMAGE_STORAGE_PATH = "./recipe_images"  # Directory to store downloaded images
+# IMAGE_STORAGE_PATH = "./recipe_images"  # Directory to store downloaded images
+IMAGE_STORAGE_PATH = "C:\\Users\\paili\\recipe_images"  # Directory to store downloaded images
 
 # Usage
 if __name__ == "__main__":
@@ -333,6 +335,6 @@ if __name__ == "__main__":
     
     try:
         # Start crawling from Last crowled ID and crawled number_to_crawl records.
-        crawler.crawl_recipes(number_to_crawl=1400)
+        crawler.crawl_recipes(number_to_crawl=5)
     finally:
         crawler.close()
